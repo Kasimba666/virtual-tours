@@ -24,14 +24,29 @@ export default {
                 if (result.error) {
                     throw result.error
                 }
+                
+                // Удаляем общий startView из данных тура, оставляем только startView для каждой сцены
+                if (result.data && result.data.data) {
+                    const cleanData = { ...result.data.data }
+                    delete cleanData.startView
+                    result.data.data = cleanData
+                }
+                
                 return result.data
             })
     },
 
     createTour(tour) {
+        // Удаляем общий startView из данных тура, оставляем только startView для каждой сцены
+        const cleanTour = { ...tour }
+        if (cleanTour.data) {
+            cleanTour.data = { ...cleanTour.data }
+            delete cleanTour.data.startView
+        }
+
         return supabase
             .from('tours')
-            .insert(tour)
+            .insert(cleanTour)
             .select()
             .then(function(result) {
                 if (result.error) {
@@ -42,11 +57,15 @@ export default {
     },
 
     saveTour(tour) {
+        // Удаляем общий startView из данных тура, оставляем только startView для каждой сцены
+        const cleanData = { ...tour.data }
+        delete cleanData.startView
+
         return supabase
             .from('tours')
             .update({
                 name: tour.name,
-                data: tour.data
+                data: cleanData
             })
             .eq('id', tour.id)
             .select()

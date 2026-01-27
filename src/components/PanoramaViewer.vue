@@ -11,7 +11,6 @@
 
 <script>
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Loading } from '@element-plus/icons-vue'
 
 export default {
@@ -27,7 +26,12 @@ export default {
     return {
       loading: false,          // загрузка текстуры
       frameId: null,
-      readyEmitted: false
+      readyEmitted: false,
+      initialized: false,      // флаг инициализации
+      applyingView: false,     // флаг применения параметров извне
+      isDragging: false,       // флаг перетаскивания мышью
+      previousMousePosition: { x: 0, y: 0 }, // предыдущая позиция мыши
+      rotationSpeed: 0.002     // скорость вращения
     }
   },
   watch: {
@@ -40,7 +44,6 @@ export default {
     this.renderer = null
     this.scene = null
     this.camera = null
-    this.controls = null
     this.sphere = null
 
     this.animate = this.animate.bind(this)
@@ -68,14 +71,12 @@ export default {
 
     this.scene = null
     this.camera = null
-    this.controls = null
     this.sphere = null
   },
   methods: {
     init() {
       const container = this.$refs.container
       if (!container) {
-        console.error('PanoramaViewer: container not found')
         return
       }
 
@@ -93,10 +94,8 @@ export default {
       )
       this.camera.position.set(0, 0, 0.1)
 
-      this.controls = new OrbitControls(this.camera, this.renderer.domElement)
-      this.controls.enableZoom = false
-      this.controls.enablePan = false
-      this.controls.rotateSpeed = 0.3
+      // Добавляем обработчики мыши для вращения панорамы
+      this.addMouseControls()
 
       const geometry = new THREE.SphereGeometry(500, 60, 40)
       geometry.scale(-1, 1, 1)
@@ -111,6 +110,59 @@ export default {
 
       this.animate()
 
+    },
+
+    addMouseControls() {
+      const container = this.$refs.container
+      
+      // Обработчик начала перетаскивания
+      container.addEventListener('mousedown', (event) => {
+        this.isDragging = true
+        this.previousMousePosition = {
+          x: event.clientX,
+          y: event.clientY
+        }
+      })
+
+      // Обработчик движения мыши
+      container.addEventListener('mousemove', (event) => {
+        if (!this.isDragging) return
+
+        const deltaMove = {
+          x: event.clientX - this.previousMousePosition.x,
+          y: event.clientY - this.previousMousePosition.y
+        }
+
+        // Вращаем камеру
+        this.camera.rotation.y -= deltaMove.x * this.rotationSpeed
+        this.camera.rotation.x -= deltaMove.y * this.rotationSpeed
+
+        // Ограничиваем вращение по вертикали (pitch)
+        const maxPitch = Math.PI / 2 - 0.1
+        const minPitch = -Math.PI / 2 + 0.1
+        this.camera.rotation.x = Math.max(minPitch, Math.min(maxPitch, this.camera.rotation.x))
+
+        this.previousMousePosition = {
+          x: event.clientX,
+          y: event.clientY
+        }
+
+        // Отправляем текущие параметры камеры при движении
+        if (!this.applyingView) {
+          const currentView = this.getCameraView()
+          this.$emit('camera-move', currentView)
+        }
+      })
+
+      // Обработчик окончания перетаскивания
+      container.addEventListener('mouseup', () => {
+        this.isDragging = false
+      })
+
+      // Обработчик выхода мыши за пределы контейнера
+      container.addEventListener('mouseleave', () => {
+        this.isDragging = false
+      })
     },
 
     loadTexture() {
@@ -129,25 +181,41 @@ export default {
             // ВАЖНО: ready только после загрузки текстуры
             if (!this.readyEmitted) {
               this.readyEmitted = true
-              this.$emit('ready')
+              // Даем больше времени на инициализацию controls
+              setTimeout(() => {
+                this.$emit('ready')
+              }, 200)
             }
           },
           undefined,
           (error) => {
-            console.error('Ошибка загрузки панорамы:', error)
             this.loading = false
           }
       )
     },
 
+    // Метод для принудительного обновления текстуры
+    updateTexture(src) {
+      if (src === this.src) return
+      
+      this.src = src
+      this.readyEmitted = false
+      this.loadTexture()
+    },
+
     animate() {
       this.frameId = requestAnimationFrame(this.animate)
 
-      if (this.controls) this.controls.update()
       if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera)
       }
 
+      // Отправляем текущие параметры камеры при движении
+      // Но не отправляем, если мы применяем параметры извне
+      if (this.camera && !this.applyingView) {
+        const currentView = this.getCameraView()
+        this.$emit('camera-move', currentView)
+      }
     },
 
     onResize() {
@@ -161,26 +229,45 @@ export default {
 
     getCameraView() {
       return {
-        yaw: this.controls.getAzimuthalAngle(),
-        pitch: this.controls.getPolarAngle(),
+        yaw: this.camera.rotation.y,
+        pitch: this.camera.rotation.x,
         fov: this.camera.fov
       }
     },
     setCameraView({ yaw, pitch, fov }) {
-      if (!this.controls || !this.camera) {
-        console.warn('setCameraView called too early')
+      // Проверяем, что все компоненты инициализированы
+      if (!this.camera || !this.renderer || !this.scene) {
         return
       }
 
-      if (typeof this.controls.setAzimuthalAngle !== 'function') {
-        console.warn('controls not ready yet')
-        return
-      }
+      try {
+        // Устанавливаем флаг применения параметров извне
+        this.applyingView = true
 
-      this.controls.setAzimuthalAngle(yaw)
-      this.controls.setPolarAngle(pitch)
-      this.camera.fov = fov
-      this.camera.updateProjectionMatrix()
+        // 1. Применяем FOV (как в примере)
+        this.camera.fov = fov
+        this.camera.updateProjectionMatrix()
+
+        // 2. Применяем углы (Yaw/Pitch) с правильным порядком вращения
+        // Используем порядок 'YXZ' как в оригинальном примере из интернета
+        this.camera.rotation.set(pitch, yaw, 0, 'YXZ')
+        
+        // Обновляем матрицу камеры
+        this.camera.updateMatrix()
+        this.camera.updateMatrixWorld(true)
+        
+        // Принудительно рендерим один кадр для применения изменений
+        if (this.renderer && this.scene && this.camera) {
+          this.renderer.render(this.scene, this.camera)
+        }
+        
+        // Сбрасываем флаг через небольшую задержку
+        setTimeout(() => {
+          this.applyingView = false
+        }, 100)
+      } catch (error) {
+        this.applyingView = false
+      }
     }
 
 

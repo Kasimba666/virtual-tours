@@ -28,13 +28,6 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="Начальный взгляд">
-          <div class="tour-edit__start-view">
-            <el-input-number v-model="form.data.startView.yaw" label="Yaw" />
-            <el-input-number v-model="form.data.startView.pitch" label="Pitch" />
-            <el-input-number v-model="form.data.startView.fov" label="FOV" />
-          </div>
-        </el-form-item>
 
         <el-divider />
 
@@ -100,7 +93,6 @@ export default {
         name: '',
         data: {
           startScene: null,
-          startView:  { yaw: 0, pitch: 0, fov: 75 },
           scenes: {}
         }
       }
@@ -130,7 +122,6 @@ export default {
               name: tour.name,
               data: {
                 startScene: data.startScene || null,
-                startView: data.startView || { yaw: 0, pitch: 0, fov: 75 },
                 scenes: data.scenes || {}
               }
             }

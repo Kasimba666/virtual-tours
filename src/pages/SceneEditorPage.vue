@@ -1,4 +1,4 @@
-<template>
+Yaw (горизонталь)Yaw ()<template>
   <div class="scene-editor-page">
     <el-card class="scene-editor-page__card">
       <h2 class="scene-editor-page__title">
@@ -37,22 +37,57 @@
 
         <el-divider />
 
+        <h3 class="scene-editor-page__subtitle">Параметры камеры</h3>
+
+        <div class="scene-editor-page__camera-controls">
+          <el-form-item label="Yaw (горизонталь)">
+            <el-input-number
+                v-model="form.startView.yaw"
+                :min="-Math.PI"
+                :max="Math.PI"
+                :step="0.1"
+                :precision="2"
+                :disabled="!form.panorama"
+                @change="onCameraParamChange"
+            />
+          </el-form-item>
+
+          <el-form-item label="Pitch (вертикаль)">
+            <el-input-number
+                v-model="form.startView.pitch"
+                :min="-Math.PI/2"
+                :max="Math.PI/2"
+                :step="0.1"
+                :precision="2"
+                :disabled="!form.panorama"
+                @change="onCameraParamChange"
+            />
+          </el-form-item>
+
+          <el-form-item label="FOV (угол обзора)">
+            <el-input-number
+                v-model="form.startView.fov"
+                :min="30"
+                :max="120"
+                :step="1"
+                :disabled="!form.panorama"
+                @change="onCameraParamChange"
+            />
+          </el-form-item>
+        </div>
+
+        <el-divider />
+
         <h3 class="scene-editor-page__subtitle">Просмотр панорамы</h3>
 
         <panorama-viewer
             v-if="form.panorama"
             ref="viewer"
             :src="form.panorama"
+            @ready="onViewerReady"
+            @camera-move="onCameraMove"
             class="scene-editor-page__viewer"
         />
-
-        <el-button
-            size="small"
-            @click="setAsStartView"
-            :disabled="!form.panorama"
-        >
-          Сделать начальным видом
-        </el-button>
 
 
         <el-divider />
@@ -75,21 +110,28 @@
 import toursService from '@/services/toursService'
 import storageService from '@/services/storageService'
 import PanoramaViewer from '@/components/PanoramaViewer.vue'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, Check } from '@element-plus/icons-vue'
 
 export default {
   name: 'SceneEditorPage',
-  components: { PanoramaViewer, Loading },
+  components: { PanoramaViewer, Loading, Check },
   data() {
     return {
       uploading: false,
       sceneSaved: false,
       tour: null,
       sceneId: this.$route.params.sceneId,
+      loadingFromDatabase: false, // флаг загрузки из базы данных
+      applyingStartView: false,   // флаг применения параметров камеры
       form: {
         name: '',
         panorama: '',
-        hotspots: []
+        hotspots: [],
+        startView: {
+          yaw: 0,
+          pitch: 0,
+          fov: 75
+        }
       }
     }
   },
@@ -98,6 +140,8 @@ export default {
   },
   methods: {
     loadTour() {
+      this.loadingFromDatabase = true // устанавливаем флаг загрузки
+      
       toursService.getTourById(this.$route.params.id)
           .then((tour) => {
             this.tour = tour
@@ -107,11 +151,34 @@ export default {
               this.form = {
                 name: scene.name,
                 panorama: scene.panorama,
-                hotspots: scene.hotspots || []
+                hotspots: scene.hotspots || [],
+                startView: scene.startView || {
+                  yaw: 0,
+                  pitch: 0,
+                  fov: 75
+                }
               }
             }
           })
           .catch((error) => console.error(error))
+          .finally(() => {
+            // Сбрасываем флаг через небольшую задержку, чтобы параметры успели примениться
+            setTimeout(() => {
+              this.loadingFromDatabase = false
+            }, 1000)
+          })
+    },
+
+    onCameraMove(view) {
+      // Обновляем параметры камеры в реальном времени при движении
+      // Но не меняем их, если мы только что загрузили сцену или применяем параметры
+      if (!this.loadingFromDatabase && !this.applyingStartView) {
+        this.form.startView = {
+          yaw: view.yaw,
+          pitch: view.pitch,
+          fov: view.fov
+        }
+      }
     },
 
     beforeUpload(file) {
@@ -130,11 +197,12 @@ export default {
     },
 
     save() {
-      this.sceneSaved = true,
+      this.sceneSaved = true
       this.tour.data.scenes[this.sceneId] = {
         name: this.form.name,
         panorama: this.form.panorama,
-        hotspots: this.form.hotspots
+        hotspots: this.form.hotspots,
+        startView: this.form.startView
       }
 
       toursService.saveTour(this.tour)
@@ -145,6 +213,83 @@ export default {
             })
           })
           .catch((error) => console.error(error))
+    },
+
+    onViewerReady() {
+      // PanoramaViewer сообщает о готовности, но controls могут быть еще не готовы
+      // Используем рекурсивную проверку готовности
+      this.waitForControlsReady()
+    },
+
+    waitForControlsReady(attempt = 1) {
+      const viewer = this.$refs.viewer
+      
+      // Максимум 40 попыток (2 секунды)
+      if (attempt > 40) {
+        return
+      }
+      
+      if (!viewer) {
+        setTimeout(() => {
+          this.waitForControlsReady(attempt + 1)
+        }, 50)
+        return
+      }
+
+      try {
+        // Пытаемся применить параметры камеры
+        this.applyStartView()
+      } catch (error) {
+        // Если ошибка, ждем и пробуем снова
+        setTimeout(() => {
+          this.waitForControlsReady(attempt + 1)
+        }, 50)
+      }
+    },
+
+    waitForViewerReady(attempt = 1) {
+      const viewer = this.$refs.viewer
+      
+      // Максимум 20 попыток (1 секунда)
+      if (attempt > 20) {
+        return
+      }
+      
+      if (!viewer) {
+        // PanoramaViewer еще не создан, ждем и пробуем снова
+        setTimeout(() => {
+          this.waitForViewerReady(attempt + 1)
+        }, 50)
+        return
+      }
+
+      // Проверяем, готов ли viewer к работе
+      if (viewer.setCameraView && typeof viewer.setCameraView === 'function') {
+        // Viewer готов, применяем параметры
+        this.applyStartView()
+      } else {
+        // Viewer еще не инициализирован, ждем и пробуем снова
+        setTimeout(() => {
+          this.waitForViewerReady(attempt + 1)
+        }, 50)
+      }
+    },
+
+    applyStartView() {
+      const viewer = this.$refs.viewer
+      if (!viewer || !this.form.panorama) {
+        return
+      }
+
+      // Устанавливаем флаг применения параметров
+      this.applyingStartView = true
+
+      viewer.setCameraView(this.form.startView)
+
+      // Сбрасываем флаг через небольшую задержку
+      setTimeout(() => {
+        this.applyingStartView = false
+      }, 300)
     },
 
     backToTour() {
@@ -161,13 +306,39 @@ export default {
     setAsStartView() {
       const viewer = this.$refs.viewer
       if (!viewer) {
-        console.warn('PanoramaViewer ещё не готов')
         return
       }
 
+      this.savingView = true
+
       const view = viewer.getCameraView()
+      
+      // Сохраняем параметры камеры для текущей сцены
+      if (!this.tour.data.scenes[this.sceneId]) {
+        this.tour.data.scenes[this.sceneId] = {}
+      }
+      
+      this.tour.data.scenes[this.sceneId].startView = view
+      
+      // Также устанавливаем эту сцену как стартовую для всего тура
       this.tour.data.startScene = this.sceneId
-      this.tour.data.startView = view
+      
+      // Показываем индикатор сохранения на короткое время
+      setTimeout(() => {
+        this.savingView = false
+      }, 1000)
+    },
+
+    onCameraParamChange() {
+      console.log('onCameraParamChange вызван')
+      console.log('Новые параметры камеры:', this.form.startView)
+      
+      // Применяем изменения параметров камеры к панораме
+      const viewer = this.$refs.viewer
+      if (viewer && this.form.panorama) {
+        console.log('Применяем изменения параметров камеры к панораме...')
+        viewer.setCameraView(this.form.startView)
+      }
     }
 
   }
@@ -203,5 +374,24 @@ export default {
   margin-top: 0.25rem;
   font-size: 0.85rem;
   color: hsl(0 0% 40%);
+}
+
+.scene-editor-page__camera-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  
+  .el-form-item {
+    margin-bottom: 0;
+    
+    .el-form-item__label {
+      font-size: 12px;
+      color: hsl(0 0% 40%);
+    }
+    
+    .el-input-number {
+      width: 100%;
+    }
+  }
 }
 </style>
