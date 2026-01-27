@@ -29,6 +29,7 @@ const routes = [
         component: () => import('@/pages/SceneEditorPage.vue'),
         meta: { requiresAuth: true }
     }
+
 ]
 
 const router = createRouter({

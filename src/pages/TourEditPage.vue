@@ -134,23 +134,25 @@ export default {
                 scenes: data.scenes || {}
               }
             }
-          })
-          .catch((error) => {
-            console.error(error)
+
+            // сохраняем оригинал
+            this.original = JSON.stringify(this.form)
           })
     },
 
-
     save() {
+      const current = JSON.stringify(this.form)
+
+      if (current === this.original) {
+        // ничего не изменилось
+        this.$router.push({ name: 'tour-manage' })
+        return
+      }
+
       toursService.saveTour(this.form)
           .then(() => {
-            this.$router.push({
-              name: 'tour-view',
-              params: { id: this.form.id }
-            })
-          })
-          .catch((error) => {
-            console.error(error)
+            this.$message.success('Тур сохранён')
+            this.$router.push({ name: 'tour-manage' })
           })
     },
 

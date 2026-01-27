@@ -26,11 +26,13 @@ export default {
   data() {
     return {
       loading: false,          // загрузка текстуры
-      frameId: null
+      frameId: null,
+      readyEmitted: false
     }
   },
   watch: {
     src() {
+      this.readyEmitted = false // ← сбрасываем флаг
       this.loadTexture()
     }
   },
@@ -107,8 +109,8 @@ export default {
       this.sphere = new THREE.Mesh(geometry, material)
       this.scene.add(this.sphere)
 
-
       this.animate()
+
     },
 
     loadTexture() {
@@ -123,6 +125,12 @@ export default {
             this.sphere.material.map = texture
             this.sphere.material.needsUpdate = true
             this.loading = false
+
+            // ВАЖНО: ready только после загрузки текстуры
+            if (!this.readyEmitted) {
+              this.readyEmitted = true
+              this.$emit('ready')
+            }
           },
           undefined,
           (error) => {
@@ -139,6 +147,7 @@ export default {
       if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera)
       }
+
     },
 
     onResize() {
@@ -158,11 +167,22 @@ export default {
       }
     },
     setCameraView({ yaw, pitch, fov }) {
+      if (!this.controls || !this.camera) {
+        console.warn('setCameraView called too early')
+        return
+      }
+
+      if (typeof this.controls.setAzimuthalAngle !== 'function') {
+        console.warn('controls not ready yet')
+        return
+      }
+
       this.controls.setAzimuthalAngle(yaw)
       this.controls.setPolarAngle(pitch)
       this.camera.fov = fov
       this.camera.updateProjectionMatrix()
     }
+
 
 
   }
