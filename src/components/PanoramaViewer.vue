@@ -193,6 +193,33 @@ export default {
       container.addEventListener('mouseleave', () => {
         this.isDragging = false
       })
+
+      // Обработчик колесика мыши для изменения FOV
+      container.addEventListener('wheel', (event) => {
+        event.preventDefault() // Предотвращаем прокрутку страницы
+        
+        // Получаем текущий FOV
+        let currentFov = this.camera.fov
+        
+        // Определяем направление прокрутки
+        // event.deltaY > 0 - прокрутка вниз (уменьшаем FOV)
+        // event.deltaY < 0 - прокрутка вверх (увеличиваем FOV)
+        const fovChange = event.deltaY > 0 ? 2 : -2
+        
+        // Изменяем FOV с ограничениями
+        currentFov += fovChange
+        currentFov = Math.max(30, Math.min(120, currentFov))
+        
+        // Устанавливаем новый FOV
+        this.camera.fov = currentFov
+        this.camera.updateProjectionMatrix()
+        
+        // Отправляем обновленные параметры камеры
+        if (!this.applyingView) {
+          const currentView = this.getCameraView()
+          this.$emit('camera-move', currentView)
+        }
+      })
     },
 
     loadTexture() {
