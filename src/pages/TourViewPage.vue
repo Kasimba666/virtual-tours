@@ -44,9 +44,9 @@
           type="primary"
           size="small"
           v-if="isAuthenticated"
-          @click="editTour"
+          @click="backToTours"
       >
-        Редактировать
+        Вернуться к списку
       </el-button>
     </el-card>
   </div>
@@ -110,10 +110,9 @@ export default {
           })
     },
 
-    editTour() {
+    backToTours() {
       this.$router.push({
-        name: 'tour-edit',
-        params: { id: this.$route.params.id }
+        name: 'tours'
       })
     },
 
