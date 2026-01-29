@@ -11,7 +11,10 @@ export default {
     },
     getters: {
         tours(state) {
-            return state.items
+            return state.items.map(tour => ({
+                ...tour,
+                scenesCount: tour.data?.scenes ? Object.keys(tour.data.scenes).length : 0
+            }))
         }
     },
     mutations: {

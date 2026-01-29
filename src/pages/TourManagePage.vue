@@ -19,6 +19,7 @@
           v-loading="loading"
       >
         <el-table-column prop="name" label="Название" />
+        <el-table-column prop="scenesCount" label="Количество сцен" width="140" />
 
         <el-table-column label="Действия" width="220">
           <template #default="scope">
