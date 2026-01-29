@@ -1,4 +1,4 @@
-Yaw (горизонталь)Yaw ()<template>
+<template>
   <div class="scene-editor-page">
     <el-card class="scene-editor-page__card">
       <h2 class="scene-editor-page__title">
@@ -78,6 +78,45 @@ Yaw (горизонталь)Yaw ()<template>
 
         <el-divider />
 
+        <h3 class="scene-editor-page__subtitle">Параметры эффектов</h3>
+
+        <div class="scene-editor-page__effects-controls">
+          <el-form-item label="Яркость">
+            <el-slider
+                v-model="form.effects.brightness"
+                :min="-1"
+                :max="1"
+                :step="0.1"
+                :disabled="!form.panorama"
+                @change="onEffectChange"
+            />
+          </el-form-item>
+
+          <el-form-item label="Контрастность">
+            <el-slider
+                v-model="form.effects.contrast"
+                :min="0"
+                :max="3"
+                :step="0.1"
+                :disabled="!form.panorama"
+                @change="onEffectChange"
+            />
+          </el-form-item>
+
+          <el-form-item label="Насыщенность">
+            <el-slider
+                v-model="form.effects.saturation"
+                :min="0"
+                :max="3"
+                :step="0.1"
+                :disabled="!form.panorama"
+                @change="onEffectChange"
+            />
+          </el-form-item>
+        </div>
+
+        <el-divider />
+
         <h3 class="scene-editor-page__subtitle">Просмотр панорамы</h3>
 
         <panorama-viewer
@@ -88,7 +127,6 @@ Yaw (горизонталь)Yaw ()<template>
             @camera-move="onCameraMove"
             class="scene-editor-page__viewer"
         />
-
 
         <el-divider />
 
@@ -131,6 +169,11 @@ export default {
           yaw: 0,
           pitch: 0,
           fov: 75
+        },
+        effects: {
+          brightness: 0,
+          contrast: 1.0,
+          saturation: 1.0
         }
       }
     }
@@ -156,6 +199,11 @@ export default {
                   yaw: 0,
                   pitch: 0,
                   fov: 75
+                },
+                effects: scene.effects || {
+                  brightness: 0,
+                  contrast: 1.0,
+                  saturation: 1.0
                 }
               }
             }
@@ -202,7 +250,8 @@ export default {
         name: this.form.name,
         panorama: this.form.panorama,
         hotspots: this.form.hotspots,
-        startView: this.form.startView
+        startView: this.form.startView,
+        effects: this.form.effects
       }
 
       toursService.saveTour(this.tour)
@@ -286,6 +335,13 @@ export default {
 
       viewer.setCameraView(this.form.startView)
 
+      // Применяем эффекты
+      if (this.form.panorama) {
+        viewer.setBrightness(this.form.effects.brightness)
+        viewer.setContrast(this.form.effects.contrast)
+        viewer.setSaturation(this.form.effects.saturation)
+      }
+
       // Сбрасываем флаг через небольшую задержку
       setTimeout(() => {
         this.applyingStartView = false
@@ -324,6 +380,7 @@ export default {
       this.tour.data.startScene = this.sceneId
       
       // Показываем индикатор сохранения на короткое время
+      // Показываем индикатор сохранения на короткое время
       setTimeout(() => {
         this.savingView = false
       }, 1000)
@@ -338,6 +395,20 @@ export default {
       if (viewer && this.form.panorama) {
         console.log('Применяем изменения параметров камеры к панораме...')
         viewer.setCameraView(this.form.startView)
+      }
+    },
+
+    onEffectChange() {
+      console.log('onEffectChange вызван')
+      console.log('Новые параметры эффектов:', this.form.effects)
+      
+      // Применяем изменения эффектов к панораме
+      const viewer = this.$refs.viewer
+      if (viewer && this.form.panorama) {
+        console.log('Применяем изменения эффектов к панораме...')
+        viewer.setBrightness(this.form.effects.brightness)
+        viewer.setContrast(this.form.effects.contrast)
+        viewer.setSaturation(this.form.effects.saturation)
       }
     }
 
@@ -390,6 +461,25 @@ export default {
     }
     
     .el-input-number {
+      width: 100%;
+    }
+  }
+}
+
+.scene-editor-page__effects-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  
+  .el-form-item {
+    margin-bottom: 0;
+    
+    .el-form-item__label {
+      font-size: 12px;
+      color: hsl(0 0% 40%);
+    }
+    
+    .el-slider {
       width: 100%;
     }
   }

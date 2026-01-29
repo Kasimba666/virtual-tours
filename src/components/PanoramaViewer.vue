@@ -11,6 +11,11 @@
 
 <script>
 import * as THREE from 'three'
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
+import { BrightnessContrastShader } from 'three/examples/jsm/shaders/BrightnessContrastShader.js'
+import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectionShader.js'
 import { Loading } from '@element-plus/icons-vue'
 
 export default {
@@ -31,7 +36,10 @@ export default {
       applyingView: false,     // флаг применения параметров извне
       isDragging: false,       // флаг перетаскивания мышью
       previousMousePosition: { x: 0, y: 0 }, // предыдущая позиция мыши
-      rotationSpeed: 0.002     // скорость вращения
+      rotationSpeed: 0.002,    // скорость вращения
+      brightness: 0,           // яркость (-1.0 до 1.0)
+      contrast: 1.0,           // контрастность (0.0 до 3.0)
+      saturation: 1.0          // насыщенность (0.0 до 3.0)
     }
   },
   watch: {
@@ -45,6 +53,7 @@ export default {
     this.scene = null
     this.camera = null
     this.sphere = null
+    this.composer = null
 
     this.animate = this.animate.bind(this)
 
@@ -67,6 +76,11 @@ export default {
       this.renderer.forceContextLoss()
       this.renderer.domElement = null
       this.renderer = null
+    }
+
+    if (this.composer) {
+      this.composer.dispose()
+      this.composer = null
     }
 
     this.scene = null
@@ -107,6 +121,22 @@ export default {
 
       this.sphere = new THREE.Mesh(geometry, material)
       this.scene.add(this.sphere)
+
+      // Инициализируем EffectComposer для пост-обработки
+      this.composer = new EffectComposer(this.renderer)
+      const renderPass = new RenderPass(this.scene, this.camera)
+      this.composer.addPass(renderPass)
+
+      // Добавляем эффект яркости и контрастности
+      this.brightnessContrastPass = new ShaderPass(BrightnessContrastShader)
+      this.brightnessContrastPass.uniforms.brightness.value = this.brightness
+      this.brightnessContrastPass.uniforms.contrast.value = this.contrast
+      this.composer.addPass(this.brightnessContrastPass)
+
+      // Добавляем эффект насыщенности (цветности)
+      this.colorCorrectionPass = new ShaderPass(ColorCorrectionShader)
+      this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation)
+      this.composer.addPass(this.colorCorrectionPass)
 
       this.animate()
 
@@ -206,7 +236,10 @@ export default {
     animate() {
       this.frameId = requestAnimationFrame(this.animate)
 
-      if (this.renderer && this.scene && this.camera) {
+      // Проверяем, что все компоненты инициализированы перед рендерингом
+      if (this.composer && this.scene && this.camera && this.renderer) {
+        this.composer.render()
+      } else if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera)
       }
 
@@ -225,6 +258,12 @@ export default {
       this.camera.aspect = container.clientWidth / container.clientHeight
       this.camera.updateProjectionMatrix()
       this.renderer.setSize(container.clientWidth, container.clientHeight)
+      
+      // Обновляем размеры composer при изменении размеров окна
+      // Проверяем все компоненты перед изменением размеров
+      if (this.composer && this.scene && this.camera && this.renderer) {
+        this.composer.setSize(container.clientWidth, container.clientHeight)
+      }
     },
 
     getCameraView() {
@@ -257,7 +296,10 @@ export default {
         this.camera.updateMatrixWorld(true)
         
         // Принудительно рендерим один кадр для применения изменений
-        if (this.renderer && this.scene && this.camera) {
+        // Проверяем все компоненты перед рендерингом
+        if (this.composer && this.scene && this.camera && this.renderer) {
+          this.composer.render()
+        } else if (this.renderer && this.scene && this.camera) {
           this.renderer.render(this.scene, this.camera)
         }
         
@@ -267,6 +309,36 @@ export default {
         }, 100)
       } catch (error) {
         this.applyingView = false
+      }
+    },
+
+    // Методы для управления эффектами
+    setBrightness(value) {
+      this.brightness = Math.max(-1.0, Math.min(1.0, value))
+      if (this.brightnessContrastPass) {
+        this.brightnessContrastPass.uniforms.brightness.value = this.brightness
+      }
+    },
+
+    setContrast(value) {
+      this.contrast = Math.max(0.0, Math.min(3.0, value))
+      if (this.brightnessContrastPass) {
+        this.brightnessContrastPass.uniforms.contrast.value = this.contrast
+      }
+    },
+
+    setSaturation(value) {
+      this.saturation = Math.max(0.0, Math.min(3.0, value))
+      if (this.colorCorrectionPass) {
+        this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation)
+      }
+    },
+
+    getEffects() {
+      return {
+        brightness: this.brightness,
+        contrast: this.contrast,
+        saturation: this.saturation
       }
     }
 
