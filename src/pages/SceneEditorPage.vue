@@ -37,83 +37,86 @@
 
         <el-divider />
 
-        <h3 class="scene-editor-page__subtitle">Параметры камеры</h3>
+        <el-collapse v-model="activeCollapse">
+          <el-collapse-item title="Параметры камеры" name="camera">
+            <div class="scene-editor-page__camera-controls">
+              <el-form-item label="Yaw (горизонталь)">
+                <el-input-number
+                    v-model="form.startView.yaw"
+                    :min="-Math.PI"
+                    :max="Math.PI"
+                    :step="0.1"
+                    :precision="2"
+                    :disabled="!form.panorama"
+                    @change="onCameraParamChange"
+                />
+              </el-form-item>
 
-        <div class="scene-editor-page__camera-controls">
-          <el-form-item label="Yaw (горизонталь)">
-            <el-input-number
-                v-model="form.startView.yaw"
-                :min="-Math.PI"
-                :max="Math.PI"
-                :step="0.1"
-                :precision="2"
-                :disabled="!form.panorama"
-                @change="onCameraParamChange"
-            />
-          </el-form-item>
+              <el-form-item label="Pitch (вертикаль)">
+                <el-input-number
+                    v-model="form.startView.pitch"
+                    :min="-Math.PI/2"
+                    :max="Math.PI/2"
+                    :step="0.1"
+                    :precision="2"
+                    :disabled="!form.panorama"
+                    @change="onCameraParamChange"
+                />
+              </el-form-item>
 
-          <el-form-item label="Pitch (вертикаль)">
-            <el-input-number
-                v-model="form.startView.pitch"
-                :min="-Math.PI/2"
-                :max="Math.PI/2"
-                :step="0.1"
-                :precision="2"
-                :disabled="!form.panorama"
-                @change="onCameraParamChange"
-            />
-          </el-form-item>
+              <el-form-item label="FOV (угол обзора)">
+                <el-input-number
+                    v-model="form.startView.fov"
+                    :min="30"
+                    :max="120"
+                    :step="1"
+                    :disabled="!form.panorama"
+                    @change="onCameraParamChange"
+                />
+              </el-form-item>
+            </div>
+          </el-collapse-item>
 
-          <el-form-item label="FOV (угол обзора)">
-            <el-input-number
-                v-model="form.startView.fov"
-                :min="30"
-                :max="120"
-                :step="1"
-                :disabled="!form.panorama"
-                @change="onCameraParamChange"
-            />
-          </el-form-item>
-        </div>
+          <el-collapse-item title="Параметры эффектов" name="effects">
+            <div class="scene-editor-page__effects-controls">
+              <el-form-item label="Яркость">
+                <el-input-number
+                    v-model="form.effects.brightness"
+                    :min="-1"
+                    :max="1"
+                    :step="0.1"
+                    :precision="1"
+                    :disabled="!form.panorama"
+                    @change="onEffectChange"
+                />
+              </el-form-item>
 
-        <el-divider />
+              <el-form-item label="Контрастность">
+                <el-input-number
+                    v-model="form.effects.contrast"
+                    :min="0"
+                    :max="3"
+                    :step="0.1"
+                    :precision="1"
+                    :disabled="!form.panorama"
+                    @change="onEffectChange"
+                />
+              </el-form-item>
 
-        <h3 class="scene-editor-page__subtitle">Параметры эффектов</h3>
-
-        <div class="scene-editor-page__effects-controls">
-          <el-form-item label="Яркость">
-            <el-slider
-                v-model="form.effects.brightness"
-                :min="-1"
-                :max="1"
-                :step="0.1"
-                :disabled="!form.panorama"
-                @change="onEffectChange"
-            />
-          </el-form-item>
-
-          <el-form-item label="Контрастность">
-            <el-slider
-                v-model="form.effects.contrast"
-                :min="0"
-                :max="3"
-                :step="0.1"
-                :disabled="!form.panorama"
-                @change="onEffectChange"
-            />
-          </el-form-item>
-
-          <el-form-item label="Насыщенность">
-            <el-slider
-                v-model="form.effects.saturation"
-                :min="0"
-                :max="3"
-                :step="0.1"
-                :disabled="!form.panorama"
-                @change="onEffectChange"
-            />
-          </el-form-item>
-        </div>
+              <el-form-item label="Насыщенность">
+                <el-input-number
+                    v-model="form.effects.saturation"
+                    :min="0"
+                    :max="3"
+                    :step="0.1"
+                    :precision="1"
+                    :disabled="!form.panorama"
+                    @change="onEffectChange"
+                />
+              </el-form-item>
+            </div>
+          </el-collapse-item>
+        </el-collapse>
 
         <el-divider />
 
@@ -161,6 +164,7 @@ export default {
       sceneId: this.$route.params.sceneId,
       loadingFromDatabase: false, // флаг загрузки из базы данных
       applyingStartView: false,   // флаг применения параметров камеры
+      activeCollapse: [],         // активные сворачиваемые панели (по умолчанию свернуты)
       form: {
         name: '',
         panorama: '',
@@ -468,8 +472,8 @@ export default {
 
 .scene-editor-page__effects-controls {
   display: flex;
-  flex-direction: column;
   gap: 1rem;
+  align-items: flex-end;
   
   .el-form-item {
     margin-bottom: 0;
@@ -479,7 +483,7 @@ export default {
       color: hsl(0 0% 40%);
     }
     
-    .el-slider {
+    .el-input-number {
       width: 100%;
     }
   }
