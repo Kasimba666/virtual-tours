@@ -1,4 +1,4 @@
-<template>
+FOV (угол обзора)<template>
   <div class="panorama-viewer-wrapper">
     <div class="panorama-viewer" ref="container"></div>
 
@@ -37,9 +37,9 @@ export default {
       isDragging: false,       // флаг перетаскивания мышью
       previousMousePosition: { x: 0, y: 0 }, // предыдущая позиция мыши
       rotationSpeed: 0.002,    // скорость вращения
-      brightness: 0,           // яркость (-1.0 до 1.0)
-      contrast: 1.0,           // контрастность (0.0 до 3.0)
-      saturation: 1.0          // насыщенность (0.0 до 3.0)
+      brightness: 0.1,         // яркость (-1.0 до 1.0)
+      contrast: 0.3,           // контрастность (0.0 до 3.0)
+      saturation: 0.9          // насыщенность (0.0 до 3.0)
     }
   },
   watch: {
@@ -101,7 +101,7 @@ export default {
       this.scene = new THREE.Scene()
 
       this.camera = new THREE.PerspectiveCamera(
-          75,
+          60,
           container.clientWidth / container.clientHeight,
           0.1,
           1000

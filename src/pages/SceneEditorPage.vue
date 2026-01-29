@@ -136,7 +136,7 @@
           </el-button>
 
           <el-button size="small" @click="backToTour">
-            Назад к туру
+            Выйти без сохранения
           </el-button>
         </el-form-item>
       </el-form>
@@ -168,12 +168,12 @@ export default {
         startView: {
           yaw: 0,
           pitch: 0,
-          fov: 75
+          fov: 60
         },
         effects: {
-          brightness: 0,
-          contrast: 1.0,
-          saturation: 1.0
+          brightness: 0.1,
+          contrast: 0.3,
+          saturation: 0.9
         }
       }
     }
@@ -198,12 +198,12 @@ export default {
                 startView: scene.startView || {
                   yaw: 0,
                   pitch: 0,
-                  fov: 75
+                  fov: 60
                 },
                 effects: scene.effects || {
-                  brightness: 0,
-                  contrast: 1.0,
-                  saturation: 1.0
+                  brightness: 0.1,
+                  contrast: 0.3,
+                  saturation: 0.9
                 }
               }
             }
