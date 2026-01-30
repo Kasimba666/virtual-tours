@@ -24,18 +24,10 @@
           <el-radio-button
               v-for="(scene, sceneId) in tour?.data?.scenes || {}"
               :key="sceneId"
-              :label="sceneId"
+              :value="sceneId"
               @change="onSceneChange"
           >
-            <el-tooltip
-                :content="scene.startView ? 'Параметры камеры сохранены' : 'Параметры камеры не сохранены'"
-                placement="top"
-            >
-              <span class="scene-name">{{ scene.name || sceneId }}</span>
-              <el-tag v-if="scene.startView" size="small" type="success" class="scene-tag">
-                ✓
-              </el-tag>
-            </el-tooltip>
+            <span class="scene-name">{{ scene.name || sceneId }}</span>
           </el-radio-button>
         </el-radio-group>
       </div>
