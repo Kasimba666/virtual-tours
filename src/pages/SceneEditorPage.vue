@@ -15,121 +15,135 @@
           <el-input v-model="form.name" />
         </el-form-item>
 
-        <el-form-item label="Панорама">
-          <el-upload
-              class="scene-editor-page__upload"
-              :show-file-list="false"
-              :before-upload="beforeUpload"
-          >
-            <el-button size="small" type="primary">Загрузить панораму</el-button>
-          </el-upload>
-
-          <div v-if="uploading" class="scene-editor-page__uploading">
-            <el-icon class="is-loading"><loading /></el-icon>
-            <span>Загрузка файла...</span>
-          </div>
-
-
-          <div v-if="form.panorama" class="scene-editor-page__panorama-url">
-            Текущий файл: {{ form.panorama }}
-          </div>
-        </el-form-item>
-
-        <el-divider />
-
-        <el-collapse v-model="activeCollapse">
-          <el-collapse-item title="Параметры камеры" name="camera">
-            <div class="scene-editor-page__camera-controls">
-              <el-form-item label="Yaw (горизонталь)">
-                <el-input-number
-                    v-model="form.startView.yaw"
-                    :min="-Math.PI"
-                    :max="Math.PI"
-                    :step="0.1"
-                    :precision="2"
-                    :disabled="!form.panorama"
-                    @change="onCameraParamChange"
-                />
-              </el-form-item>
-
-              <el-form-item label="Pitch (вертикаль)">
-                <el-input-number
-                    v-model="form.startView.pitch"
-                    :min="-Math.PI/2"
-                    :max="Math.PI/2"
-                    :step="0.1"
-                    :precision="2"
-                    :disabled="!form.panorama"
-                    @change="onCameraParamChange"
-                />
-              </el-form-item>
-
-              <el-form-item label="FOV (угол обзора)">
-                <el-input-number
-                    v-model="form.startView.fov"
-                    :min="30"
-                    :max="120"
-                    :step="1"
-                    :disabled="!form.panorama"
-                    @change="onCameraParamChange"
-                />
-              </el-form-item>
+        <el-tabs v-model="activeTab" type="border-card" @tab-click="onTabClick">
+          <el-tab-pane label="Хотспоты" name="hotspots">
+            <div class="hotspots-viewer">
+              <panorama-viewer
+                  v-if="form.panorama"
+                  ref="hotspotsViewer"
+                  :src="form.panorama"
+                  @ready="onHotspotsViewerReady"
+                  @camera-move="onCameraMove"
+                  class="hotspots-viewer__viewer"
+              />
             </div>
-          </el-collapse-item>
+          </el-tab-pane>
 
-          <el-collapse-item title="Параметры эффектов" name="effects">
-            <div class="scene-editor-page__effects-controls">
-              <el-form-item label="Яркость">
-                <el-input-number
-                    v-model="form.effects.brightness"
-                    :min="-1"
-                    :max="1"
-                    :step="0.1"
-                    :precision="1"
-                    :disabled="!form.panorama"
-                    @change="onEffectChange"
-                />
-              </el-form-item>
+          <el-tab-pane label="Настройки вида" name="viewer">
+            <el-form-item label="Панорама">
+              <el-upload
+                  class="scene-editor-page__upload"
+                  :show-file-list="false"
+                  :before-upload="beforeUpload"
+              >
+                <el-button size="small" type="primary">Загрузить панораму</el-button>
+              </el-upload>
 
-              <el-form-item label="Контрастность">
-                <el-input-number
-                    v-model="form.effects.contrast"
-                    :min="0"
-                    :max="3"
-                    :step="0.1"
-                    :precision="1"
-                    :disabled="!form.panorama"
-                    @change="onEffectChange"
-                />
-              </el-form-item>
+              <div v-if="uploading" class="scene-editor-page__uploading">
+                <el-icon class="is-loading"><loading /></el-icon>
+                <span>Загрузка файла...</span>
+              </div>
 
-              <el-form-item label="Насыщенность">
-                <el-input-number
-                    v-model="form.effects.saturation"
-                    :min="0"
-                    :max="3"
-                    :step="0.1"
-                    :precision="1"
-                    :disabled="!form.panorama"
-                    @change="onEffectChange"
-                />
-              </el-form-item>
-            </div>
-          </el-collapse-item>
-        </el-collapse>
+              <div v-if="form.panorama" class="scene-editor-page__panorama-url">
+                Текущий файл: {{ form.panorama }}
+              </div>
+            </el-form-item>
 
-        <el-divider />
+            <el-divider />
 
-        <h3 class="scene-editor-page__subtitle">Просмотр панорамы</h3>
+            <el-collapse v-model="activeCollapse">
+              <el-collapse-item title="Параметры камеры" name="camera">
+                <div class="scene-editor-page__camera-controls">
+                  <el-form-item label="Yaw (горизонталь)">
+                    <el-input-number
+                        v-model="form.startView.yaw"
+                        :min="-Math.PI"
+                        :max="Math.PI"
+                        :step="0.1"
+                        :precision="2"
+                        :disabled="!form.panorama"
+                        @change="onCameraParamChange"
+                    />
+                  </el-form-item>
 
-        <panorama-viewer
-            v-if="form.panorama"
-            ref="viewer"
-            :src="form.panorama"
-            @ready="onViewerReady"
-            @camera-move="onCameraMove"
-            class="scene-editor-page__viewer"
-        />
+                  <el-form-item label="Pitch (вертикаль)">
+                    <el-input-number
+                        v-model="form.startView.pitch"
+                        :min="-Math.PI/2"
+                        :max="Math.PI/2"
+                        :step="0.1"
+                        :precision="2"
+                        :disabled="!form.panorama"
+                        @change="onCameraParamChange"
+                    />
+                  </el-form-item>
+
+                  <el-form-item label="FOV (угол обзора)">
+                    <el-input-number
+                        v-model="form.startView.fov"
+                        :min="30"
+                        :max="120"
+                        :step="1"
+                        :disabled="!form.panorama"
+                        @change="onCameraParamChange"
+                    />
+                  </el-form-item>
+                </div>
+              </el-collapse-item>
+
+              <el-collapse-item title="Параметры эффектов" name="effects">
+                <div class="scene-editor-page__effects-controls">
+                  <el-form-item label="Яркость">
+                    <el-input-number
+                        v-model="form.effects.brightness"
+                        :min="-1"
+                        :max="1"
+                        :step="0.1"
+                        :precision="1"
+                        :disabled="!form.panorama"
+                        @change="onEffectChange"
+                    />
+                  </el-form-item>
+
+                  <el-form-item label="Контрастность">
+                    <el-input-number
+                        v-model="form.effects.contrast"
+                        :min="0"
+                        :max="3"
+                        :step="0.1"
+                        :precision="1"
+                        :disabled="!form.panorama"
+                        @change="onEffectChange"
+                    />
+                  </el-form-item>
+
+                  <el-form-item label="Насыщенность">
+                    <el-input-number
+                        v-model="form.effects.saturation"
+                        :min="0"
+                        :max="3"
+                        :step="0.1"
+                        :precision="1"
+                        :disabled="!form.panorama"
+                        @change="onEffectChange"
+                    />
+                  </el-form-item>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+
+            <el-divider />
+
+            <panorama-viewer
+                v-if="form.panorama && viewerInitialized"
+                ref="viewer"
+                :src="form.panorama"
+                @ready="onViewerReady"
+                @camera-move="onCameraMove"
+                class="scene-editor-page__viewer"
+            />
+          </el-tab-pane>
+        </el-tabs>
 
         <el-divider />
 
@@ -165,6 +179,8 @@ export default {
       loadingFromDatabase: false, // флаг загрузки из базы данных
       applyingStartView: false,   // флаг применения параметров камеры
       activeCollapse: [],         // активные сворачиваемые панели (по умолчанию свернуты)
+      activeTab: 'hotspots',      // активная вкладка (по умолчанию "Хотспоты")
+      viewerInitialized: false,   // флаг инициализации панорамы во вкладке Настройки вида
       form: {
         name: '',
         panorama: '',
@@ -269,63 +285,10 @@ export default {
     },
 
     onViewerReady() {
-      // PanoramaViewer сообщает о готовности, но controls могут быть еще не готовы
-      // Используем рекурсивную проверку готовности
-      this.waitForControlsReady()
-    },
-
-    waitForControlsReady(attempt = 1) {
-      const viewer = this.$refs.viewer
+      console.log('Панорама в вкладке Настройки вида готова')
       
-      // Максимум 40 попыток (2 секунды)
-      if (attempt > 40) {
-        return
-      }
-      
-      if (!viewer) {
-        setTimeout(() => {
-          this.waitForControlsReady(attempt + 1)
-        }, 50)
-        return
-      }
-
-      try {
-        // Пытаемся применить параметры камеры
-        this.applyStartView()
-      } catch (error) {
-        // Если ошибка, ждем и пробуем снова
-        setTimeout(() => {
-          this.waitForControlsReady(attempt + 1)
-        }, 50)
-      }
-    },
-
-    waitForViewerReady(attempt = 1) {
-      const viewer = this.$refs.viewer
-      
-      // Максимум 20 попыток (1 секунда)
-      if (attempt > 20) {
-        return
-      }
-      
-      if (!viewer) {
-        // PanoramaViewer еще не создан, ждем и пробуем снова
-        setTimeout(() => {
-          this.waitForViewerReady(attempt + 1)
-        }, 50)
-        return
-      }
-
-      // Проверяем, готов ли viewer к работе
-      if (viewer.setCameraView && typeof viewer.setCameraView === 'function') {
-        // Viewer готов, применяем параметры
-        this.applyStartView()
-      } else {
-        // Viewer еще не инициализирован, ждем и пробуем снова
-        setTimeout(() => {
-          this.waitForViewerReady(attempt + 1)
-        }, 50)
-      }
+      // Применяем начальные параметры камеры к панораме
+      this.applyStartView()
     },
 
     applyStartView() {
@@ -337,14 +300,13 @@ export default {
       // Устанавливаем флаг применения параметров
       this.applyingStartView = true
 
+      // Применяем параметры камеры
       viewer.setCameraView(this.form.startView)
 
       // Применяем эффекты
-      if (this.form.panorama) {
-        viewer.setBrightness(this.form.effects.brightness)
-        viewer.setContrast(this.form.effects.contrast)
-        viewer.setSaturation(this.form.effects.saturation)
-      }
+      viewer.setBrightness(this.form.effects.brightness)
+      viewer.setContrast(this.form.effects.contrast)
+      viewer.setSaturation(this.form.effects.saturation)
 
       // Сбрасываем флаг через небольшую задержку
       setTimeout(() => {
@@ -406,14 +368,73 @@ export default {
       console.log('onEffectChange вызван')
       console.log('Новые параметры эффектов:', this.form.effects)
       
-      // Применяем изменения эффектов к панораме
+      // Применяем изменения эффектов к панораме в основной вкладке
       const viewer = this.$refs.viewer
-      if (viewer && this.form.panorama) {
+      if (viewer && this.form.panorama && this.viewerInitialized) {
         console.log('Применяем изменения эффектов к панораме...')
         viewer.setBrightness(this.form.effects.brightness)
         viewer.setContrast(this.form.effects.contrast)
         viewer.setSaturation(this.form.effects.saturation)
       }
+      
+      // Применяем изменения эффектов к панораме в вкладке Хотспоты
+      const hotspotsViewer = this.$refs.hotspotsViewer
+      if (hotspotsViewer && this.form.panorama) {
+        console.log('Применяем изменения эффектов к панораме в вкладке Хотспоты...')
+        hotspotsViewer.setBrightness(this.form.effects.brightness)
+        hotspotsViewer.setContrast(this.form.effects.contrast)
+        hotspotsViewer.setSaturation(this.form.effects.saturation)
+      }
+    },
+
+    // Метод для обработки переключения вкладок
+    onTabClick(tab) {
+      // Если перешли во вкладку "Настройки вида" и панорама еще не инициализирована
+      if (tab.props.name === 'viewer' && this.form.panorama && !this.viewerInitialized) {
+        console.log('Инициализация панорамы во вкладке Настройки вида')
+        this.viewerInitialized = true
+        
+        // Применяем начальные параметры к панораме во вкладке Настройки вида
+        this.$nextTick(() => {
+          const viewer = this.$refs.viewer
+          if (viewer && this.form.panorama) {
+            console.log('Применяем начальные параметры к панораме во вкладке Настройки вида...')
+            viewer.setCameraView(this.form.startView)
+            viewer.setBrightness(this.form.effects.brightness)
+            viewer.setContrast(this.form.effects.contrast)
+            viewer.setSaturation(this.form.effects.saturation)
+          }
+        })
+      }
+    },
+
+    // Метод для обработки готовности панорамы в вкладке Хотспоты
+    onHotspotsViewerReady() {
+      console.log('Панорама в вкладке Хотспоты готова')
+      
+      // Добавляем небольшую задержку перед применением эффектов, чтобы избежать ошибок WebGL
+      setTimeout(() => {
+        const viewer = this.$refs.hotspotsViewer
+        if (viewer && this.form.panorama) {
+          console.log('Применяем эффекты к панораме в вкладке Хотспоты...')
+          viewer.setBrightness(this.form.effects.brightness)
+          viewer.setContrast(this.form.effects.contrast)
+          viewer.setSaturation(this.form.effects.saturation)
+          
+          console.log('Применяем начальные параметры камеры к панораме в вкладке Хотспоты...')
+          viewer.setCameraView(this.form.startView)
+          
+          // Повторно применяем эффекты через еще одну небольшую задержку
+          setTimeout(() => {
+            if (viewer && this.form.panorama) {
+              console.log('Повторно применяем эффекты к панораме в вкладке Хотспоты...')
+              viewer.setBrightness(this.form.effects.brightness)
+              viewer.setContrast(this.form.effects.contrast)
+              viewer.setSaturation(this.form.effects.saturation)
+            }
+          }, 50)
+        }
+      }, 200)
     }
 
   }
@@ -487,5 +508,16 @@ export default {
       width: 100%;
     }
   }
+}
+
+// Стили для вкладки Хотспоты
+.hotspots-viewer {
+  height: 400px;
+  background-color: hsl(0 0% 90%);
+}
+
+.hotspots-viewer__viewer {
+  width: 100%;
+  height: 100%;
 }
 </style>
