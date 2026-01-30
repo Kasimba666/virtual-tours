@@ -142,6 +142,17 @@
                   class="hotspots-viewer__viewer"
               />
             </div>
+
+            <hotspots-editor
+                :panorama-loaded="form.panorama && hotspotsViewerInitialized"
+                :hotspots="form.hotspots"
+                :available-scenes="availableScenes"
+                @add-hotspot="addHotspot"
+                @remove-hotspot="removeHotspot"
+                @update-hotspot="updateHotspot"
+                @clear-hotspots="clearHotspots"
+                class="scene-editor-page__hotspots-editor"
+            />
           </el-tab-pane>
         </el-tabs>
 
@@ -204,6 +215,19 @@ export default {
   created() {
     this.loadTour()
   },
+  computed: {
+    availableScenes() {
+      if (!this.tour || !this.tour.data || !this.tour.data.scenes) {
+        return []
+      }
+      
+      return Object.keys(this.tour.data.scenes).map((id) => ({
+        id,
+        name: this.tour.data.scenes[id].name || id
+      }))
+    }
+  },
+
   methods: {
     loadTour() {
       this.loadingFromDatabase = true // устанавливаем флаг загрузки
@@ -277,6 +301,48 @@ export default {
           }
         }
       }
+    },
+
+    // Методы для работы с хотспотами
+    addHotspot() {
+      const currentView = this.hotspotsCameraView || this.viewerCameraView
+      
+      if (!currentView) {
+        this.$message.warning('Сначала установите камеру в нужное положение')
+        return
+      }
+
+      const newHotspot = {
+        id: 'hotspot-' + Date.now(),
+        type: 'scene',
+        name: 'Новый хотспот',
+        color: '#ff4444',
+        position: {
+          yaw: currentView.yaw,
+          pitch: currentView.pitch
+        },
+        size: 30,
+        targetScene: this.availableScenes[0]?.id || '',
+        text: 'Описание хотспота'
+      }
+
+      this.form.hotspots.push(newHotspot)
+      this.$message.success('Хотспот добавлен')
+    },
+
+    removeHotspot(index) {
+      this.form.hotspots.splice(index, 1)
+      this.$message.success('Хотспот удален')
+    },
+
+    updateHotspot(index) {
+      // Хотспот уже обновлен в форме, ничего дополнительно делать не нужно
+      this.$message.success('Хотспот обновлен')
+    },
+
+    clearHotspots() {
+      this.form.hotspots = []
+      this.$message.success('Все хотспоты удалены')
     },
 
     beforeUpload(file) {
@@ -671,5 +737,9 @@ export default {
 .hotspots-viewer__viewer {
   width: 100%;
   height: 100%;
+}
+
+.scene-editor-page__hotspots-editor {
+  margin-top: 1rem;
 }
 </style>
