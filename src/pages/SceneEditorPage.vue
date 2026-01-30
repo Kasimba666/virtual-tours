@@ -211,21 +211,30 @@ export default {
             const scene = tour.data.scenes[this.sceneId]
 
             if (scene) {
+              // Сохраняем оригинальные значения из базы данных
+              const originalStartView = scene.startView || {
+                yaw: 0,
+                pitch: 0,
+                fov: 60
+              }
+              
+              const originalEffects = scene.effects || {
+                brightness: 0.1,
+                contrast: 0.3,
+                saturation: 0.9
+              }
+
               this.form = {
                 name: scene.name,
                 panorama: scene.panorama,
                 hotspots: scene.hotspots || [],
-                startView: scene.startView || {
-                  yaw: 0,
-                  pitch: 0,
-                  fov: 60
-                },
-                effects: scene.effects || {
-                  brightness: 0.1,
-                  contrast: 0.3,
-                  saturation: 0.9
-                }
+                startView: originalStartView,
+                effects: originalEffects
               }
+
+              console.log('Загруженные из базы данных параметры:')
+              console.log('startView:', originalStartView)
+              console.log('effects:', originalEffects)
             }
           })
           .catch((error) => console.error(error))
@@ -241,6 +250,7 @@ export default {
       // Обновляем параметры камеры в реальном времени при движении
       // Но не меняем их, если мы только что загрузили сцену или применяем параметры
       if (!this.loadingFromDatabase && !this.applyingStartView) {
+        // Создаем новый объект, чтобы избежать проблем с реактивностью
         this.form.startView = {
           yaw: view.yaw,
           pitch: view.pitch,
@@ -300,18 +310,44 @@ export default {
       // Устанавливаем флаг применения параметров
       this.applyingStartView = true
 
-      // Применяем параметры камеры
-      viewer.setCameraView(this.form.startView)
-
-      // Применяем эффекты
-      viewer.setBrightness(this.form.effects.brightness)
-      viewer.setContrast(this.form.effects.contrast)
-      viewer.setSaturation(this.form.effects.saturation)
-
-      // Сбрасываем флаг через небольшую задержку
+      // Применяем параметры камеры с небольшой задержкой для асинхронной инициализации
       setTimeout(() => {
-        this.applyingStartView = false
-      }, 300)
+        try {
+          // Получаем оригинальные параметры из базы данных напрямую
+          const tour = this.tour
+          const scene = tour.data.scenes[this.sceneId]
+          const originalStartView = scene.startView || {
+            yaw: 0,
+            pitch: 0,
+            fov: 60
+          }
+          
+          console.log('Применяем оригинальные параметры камеры из базы данных:', originalStartView)
+          
+          // Создаем новый объект, чтобы избежать проблем с реактивностью
+          const cameraView = {
+            yaw: originalStartView.yaw,
+            pitch: originalStartView.pitch,
+            fov: originalStartView.fov
+          }
+          
+          viewer.setCameraView(cameraView)
+          
+          // Применяем эффекты
+          viewer.setBrightness(this.form.effects.brightness)
+          viewer.setContrast(this.form.effects.contrast)
+          viewer.setSaturation(this.form.effects.saturation)
+          
+          console.log('Параметры камеры успешно применены')
+        } catch (error) {
+          console.error('Ошибка при применении параметров камеры:', error)
+        } finally {
+          // Сбрасываем флаг через небольшую задержку
+          setTimeout(() => {
+            this.applyingStartView = false
+          }, 300)
+        }
+      }, 100) // Небольшая задержка для асинхронной инициализации
     },
 
     backToTour() {
@@ -360,7 +396,13 @@ export default {
       const viewer = this.$refs.viewer
       if (viewer && this.form.panorama) {
         console.log('Применяем изменения параметров камеры к панораме...')
-        viewer.setCameraView(this.form.startView)
+        // Создаем новый объект, чтобы избежать проблем с реактивностью
+        const newView = {
+          yaw: this.form.startView.yaw,
+          pitch: this.form.startView.pitch,
+          fov: this.form.startView.fov
+        }
+        viewer.setCameraView(newView)
       }
     },
 
