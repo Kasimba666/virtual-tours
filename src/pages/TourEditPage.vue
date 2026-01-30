@@ -39,7 +39,7 @@
           <el-table-column prop="id" label="ID" width="120" />
           <el-table-column prop="name" label="Название" />
 
-          <el-table-column label="Действия" width="180">
+          <el-table-column label="Действия" width="210">
             <template #default="scope">
               <el-button
                   size="small"
@@ -48,7 +48,6 @@
               >
                 Редактировать
               </el-button>
-
               <el-button
                   size="small"
                   type="danger"
