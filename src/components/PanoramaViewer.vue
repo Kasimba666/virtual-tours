@@ -1,404 +1,365 @@
-FOV (угол обзора)<template>
+<template>
   <div class="panorama-viewer-wrapper">
     <div class="panorama-viewer" ref="container"></div>
-
     <div v-if="loading" class="panorama-viewer__loading">
-      <el-icon class="is-loading"><loading /></el-icon>
+      <el-icon class="is-loading"><Loading /></el-icon>
       <span>Загрузка панорамы...</span>
     </div>
   </div>
 </template>
 
 <script>
-import * as THREE from 'three'
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
-import { BrightnessContrastShader } from 'three/examples/jsm/shaders/BrightnessContrastShader.js'
-import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectionShader.js'
-import { Loading } from '@element-plus/icons-vue'
+import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { BrightnessContrastShader } from 'three/examples/jsm/shaders/BrightnessContrastShader.js';
+import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectionShader.js';
+import { Loading } from '@element-plus/icons-vue';
+import { markRaw } from 'vue';
 
 export default {
   name: 'PanoramaViewer',
   components: { Loading },
   props: {
-    src: {
-      type: String,
-      required: true
-    }
+    src: { type: String, required: true },
+    hotspots: { type: Array, default: () => [] },
+    selectedHotspotId: { type: String, default: null }
   },
+  emits: ['ready', 'camera-move', 'hotspot-click', 'hotspot-dblclick', 'hotspot-drag'],
   data() {
     return {
-      loading: false,          // загрузка текстуры
-      frameId: null,
-      readyEmitted: false,
-      initialized: false,      // флаг инициализации
-      applyingView: false,     // флаг применения параметров извне
-      isDragging: false,       // флаг перетаскивания мышью
-      previousMousePosition: { x: 0, y: 0 }, // предыдущая позиция мыши
-      rotationSpeed: 0.002,    // скорость вращения
-      brightness: 0.1,         // яркость (-1.0 до 1.0)
-      contrast: 0.3,           // контрастность (0.0 до 3.0)
-      saturation: 0.9          // насыщенность (0.0 до 3.0)
-    }
+      loading: false, frameId: null, readyEmitted: false, initialized: false,
+      applyingView: false, isDragging: false, previousMousePosition: { x: 0, y: 0 },
+      rotationSpeed: 0.002, brightness: 0.1, contrast: 0.3, saturation: 0.9,
+      hoveredHotspot: null, draggingHotspot: null, lastClickTime: 0, hotspotSize: 30,
+      hotspotSpritesMap: new Map()
+    };
   },
   watch: {
-    src() {
-      this.readyEmitted = false // ← сбрасываем флаг
-      this.loadTexture()
-    }
+    src() { this.readyEmitted = false; this.loadTexture(); },
+    hotspots: { handler() { this.updateHotspots(); }, deep: true },
+    selectedHotspotId() { this.updateHotspotSelection(); }
   },
   mounted() {
-    this.renderer = null
-    this.scene = null
-    this.camera = null
-    this.sphere = null
-    this.composer = null
-
-    this.animate = this.animate.bind(this)
-
-    this.$nextTick(() => {
-      this.init()
-      this.loadTexture()
-      window.addEventListener('resize', this.onResize)
-    })
+    this.renderer = null; this.scene = null; this.camera = null; this.sphere = null; this.composer = null;
+    this.animate = this.animate.bind(this);
+    this.$nextTick(() => { this.init(); this.loadTexture(); window.addEventListener('resize', this.onResize); this.addMouseControls(); });
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.onResize)
-
-    if (this.frameId) {
-      cancelAnimationFrame(this.frameId)
-      this.frameId = null
-    }
-
-    if (this.renderer) {
-      this.renderer.dispose()
-      this.renderer.forceContextLoss()
-      this.renderer.domElement = null
-      this.renderer = null
-    }
-
-    if (this.composer) {
-      this.composer.dispose()
-      this.composer = null
-    }
-
-    this.scene = null
-    this.camera = null
-    this.sphere = null
+    window.removeEventListener('resize', this.onResize);
+    this.clearHotspots();
+    if (this.frameId) { cancelAnimationFrame(this.frameId); this.frameId = null; }
+    if (this.renderer) { this.renderer.dispose(); this.renderer.forceContextLoss(); this.renderer.domElement = null; this.renderer = null; }
+    if (this.composer) { this.composer.dispose(); this.composer = null; }
+    this.scene = null; this.camera = null; this.sphere = null;
   },
   methods: {
     init() {
-      const container = this.$refs.container
-      if (!container) {
-        return
+      const container = this.$refs.container;
+      if (!container) return;
+      this.renderer = new THREE.WebGLRenderer({ antialias: true });
+      this.renderer.setSize(container.clientWidth, container.clientHeight);
+      this.renderer.domElement.style.cursor = 'grab';
+      container.appendChild(this.renderer.domElement);
+      this.scene = new THREE.Scene();
+      this.camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+      this.camera.position.set(0, 0, 0.01);
+      const geometry = new THREE.SphereGeometry(500, 60, 40);
+      geometry.scale(-1, 1, 1);
+      const material = new THREE.MeshBasicMaterial({ map: null, color: 0xffffff });
+      this.sphere = new THREE.Mesh(geometry, material);
+      this.scene.add(this.sphere);
+      this.composer = new EffectComposer(this.renderer);
+      const renderPass = new RenderPass(this.scene, this.camera);
+      this.composer.addPass(renderPass);
+      this.brightnessContrastPass = new ShaderPass(BrightnessContrastShader);
+      this.brightnessContrastPass.uniforms.brightness.value = this.brightness;
+      this.brightnessContrastPass.uniforms.contrast.value = this.contrast;
+      this.composer.addPass(this.brightnessContrastPass);
+      this.colorCorrectionPass = new ShaderPass(ColorCorrectionShader);
+      this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation);
+      this.composer.addPass(this.colorCorrectionPass);
+      console.log('[PanoramaViewer] Эффекты инициализированы');
+      this.initialized = true;
+      // Render hotspots if they were passed before scene was ready
+      if (this.hotspots && this.hotspots.length > 0) {
+        this.updateHotspots();
       }
-
-      this.renderer = new THREE.WebGLRenderer({ antialias: true })
-      this.renderer.setSize(container.clientWidth, container.clientHeight)
-      container.appendChild(this.renderer.domElement)
-
-      this.scene = new THREE.Scene()
-
-      this.camera = new THREE.PerspectiveCamera(
-          60,
-          container.clientWidth / container.clientHeight,
-          0.1,
-          1000
-      )
-      this.camera.position.set(0, 0, 0.1)
-
-      // Добавляем обработчики мыши для вращения панорамы
-      this.addMouseControls()
-
-      const geometry = new THREE.SphereGeometry(500, 60, 40)
-      geometry.scale(-1, 1, 1)
-
-      const material = new THREE.MeshBasicMaterial({
-        map: null,
-        color: 0xffffff
-      })
-
-      this.sphere = new THREE.Mesh(geometry, material)
-      this.scene.add(this.sphere)
-
-      // Инициализируем EffectComposer для пост-обработки
-      this.composer = new EffectComposer(this.renderer)
-      const renderPass = new RenderPass(this.scene, this.camera)
-      this.composer.addPass(renderPass)
-
-      // Добавляем эффект яркости и контрастности
-      this.brightnessContrastPass = new ShaderPass(BrightnessContrastShader)
-      this.brightnessContrastPass.uniforms.brightness.value = this.brightness
-      this.brightnessContrastPass.uniforms.contrast.value = this.contrast
-      this.composer.addPass(this.brightnessContrastPass)
-
-      // Добавляем эффект насыщенности (цветности)
-      this.colorCorrectionPass = new ShaderPass(ColorCorrectionShader)
-      this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation)
-      this.composer.addPass(this.colorCorrectionPass)
-
-      this.animate()
-
+      this.animate();
     },
-
-    addMouseControls() {
-      const container = this.$refs.container
-      
-      // Обработчик начала перетаскивания
-      container.addEventListener('mousedown', (event) => {
-        this.isDragging = true
-        this.previousMousePosition = {
-          x: event.clientX,
-          y: event.clientY
-        }
-      })
-
-      // Обработчик движения мыши
-      container.addEventListener('mousemove', (event) => {
-        if (!this.isDragging) return
-
-        const deltaMove = {
-          x: event.clientX - this.previousMousePosition.x,
-          y: event.clientY - this.previousMousePosition.y
-        }
-
-        // Вращаем камеру
-        this.camera.rotation.y -= deltaMove.x * this.rotationSpeed
-        this.camera.rotation.x -= deltaMove.y * this.rotationSpeed
-
-        // Ограничиваем вращение по вертикали (pitch)
-        const maxPitch = Math.PI / 2 - 0.1
-        const minPitch = -Math.PI / 2 + 0.1
-        this.camera.rotation.x = Math.max(minPitch, Math.min(maxPitch, this.camera.rotation.x))
-
-        this.previousMousePosition = {
-          x: event.clientX,
-          y: event.clientY
-        }
-
-        // Отправляем текущие параметры камеры при движении
-        if (!this.applyingView) {
-          const currentView = this.getCameraView()
-          this.$emit('camera-move', currentView)
-        }
-      })
-
-      // Обработчик окончания перетаскивания
-      container.addEventListener('mouseup', () => {
-        this.isDragging = false
-      })
-
-      // Обработчик выхода мыши за пределы контейнера
-      container.addEventListener('mouseleave', () => {
-        this.isDragging = false
-      })
-
-      // Обработчик колесика мыши для изменения FOV
-      container.addEventListener('wheel', (event) => {
-        event.preventDefault() // Предотвращаем прокрутку страницы
-        
-        // Получаем текущий FOV
-        let currentFov = this.camera.fov
-        
-        // Определяем направление прокрутки
-        // event.deltaY > 0 - прокрутка вниз (уменьшаем FOV)
-        // event.deltaY < 0 - прокрутка вверх (увеличиваем FOV)
-        const fovChange = event.deltaY > 0 ? 2 : -2
-        
-        // Изменяем FOV с ограничениями
-        currentFov += fovChange
-        currentFov = Math.max(30, Math.min(120, currentFov))
-        
-        // Устанавливаем новый FOV
-        this.camera.fov = currentFov
-        this.camera.updateProjectionMatrix()
-        
-        // Отправляем обновленные параметры камеры
-        if (!this.applyingView) {
-          const currentView = this.getCameraView()
-          this.$emit('camera-move', currentView)
-        }
-      })
-    },
-
     loadTexture() {
-      if (!this.src) return
-
-      this.loading = true
-
-      const loader = new THREE.TextureLoader()
-      loader.load(
-          this.src,
-          (texture) => {
-            this.sphere.material.map = texture
-            this.sphere.material.needsUpdate = true
-            this.loading = false
-
-            // ВАЖНО: ready только после загрузки текстуры
-            if (!this.readyEmitted) {
-              this.readyEmitted = true
-              // Даем больше времени на инициализацию controls
-              setTimeout(() => {
-                this.$emit('ready')
-              }, 200)
-            }
-          },
-          undefined,
-          (error) => {
-            this.loading = false
-          }
-      )
+      if (!this.src) return;
+      this.loading = true;
+      const loader = new THREE.TextureLoader();
+      loader.load(this.src, (texture) => {
+        if (this.sphere) { this.sphere.material.map = texture; this.sphere.material.needsUpdate = true; }
+        this.loading = false;
+        if (!this.readyEmitted) { this.readyEmitted = true; setTimeout(() => { this.$emit('ready'); }, 200); }
+      }, undefined, (error) => { console.error('Error loading panorama:', error); this.loading = false; });
     },
-
-    // Метод для принудительного обновления текстуры
-    updateTexture(src) {
-      if (src === this.src) return
-      
-      this.src = src
-      this.readyEmitted = false
-      this.loadTexture()
+    createAimIconTexture(isSelected) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      const color = isSelected ? '#ff0000' : '#0066ff';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(32, 8); ctx.lineTo(32, 56);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(8, 32); ctx.lineTo(56, 32);
+      ctx.stroke();
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      return texture;
     },
-
-    animate() {
-      this.frameId = requestAnimationFrame(this.animate)
-
-      // Проверяем, что все компоненты инициализированы перед рендерингом
-      if (this.composer && this.scene && this.camera && this.renderer) {
-        this.composer.render()
-      } else if (this.renderer && this.scene && this.camera) {
-        this.renderer.render(this.scene, this.camera)
-      }
-
-      // Отправляем текущие параметры камеры при движении
-      // Но не отправляем, если мы применяем параметры извне
-      if (this.camera && !this.applyingView) {
-        const currentView = this.getCameraView()
-        this.$emit('camera-move', currentView)
-      }
+    createHotspotSprite(hotspot) {
+      const isSelected = hotspot.id === this.selectedHotspotId;
+      const texture = this.createAimIconTexture(isSelected);
+      const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false, transparent: true, opacity: 1 });
+      const sprite = new THREE.Sprite(material);
+      sprite.scale.set(this.hotspotSize, this.hotspotSize, 1);
+      sprite.renderOrder = 9999;
+      const pos = this.yawPitchToVector3(hotspot.position.yaw, hotspot.position.pitch);
+      sprite.position.copy(pos);
+      sprite.userData = { hotspotId: hotspot.id };
+      return sprite;
     },
-
-    onResize() {
-      const container = this.$refs.container
-      if (!container || !this.camera || !this.renderer) return
-
-      this.camera.aspect = container.clientWidth / container.clientHeight
-      this.camera.updateProjectionMatrix()
-      this.renderer.setSize(container.clientWidth, container.clientHeight)
-      
-      // Обновляем размеры composer при изменении размеров окна
-      // Проверяем все компоненты перед изменением размеров
-      if (this.composer && this.scene && this.camera && this.renderer) {
-        this.composer.setSize(container.clientWidth, container.clientHeight)
-      }
+    yawPitchToVector3(yaw, pitch) {
+      const r = 499;
+      const yawDeg = -yaw * (180 / Math.PI);
+      const pitchDeg = pitch * (180 / Math.PI);
+      const phi = (90 - pitchDeg) * (Math.PI / 180);
+      const theta = (yawDeg + 180) * (Math.PI / 180);
+      return new THREE.Vector3(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
     },
-
-    getCameraView() {
-      return {
-        yaw: this.camera.rotation.y,
-        pitch: this.camera.rotation.x,
-        fov: this.camera.fov
-      }
+    vector3ToYawPitch(vector) {
+      const normalized = vector.clone().normalize();
+      const pitch = Math.asin(normalized.y);
+      const yaw = Math.atan2(normalized.z, -normalized.x);
+      return { yaw, pitch };
     },
-    setCameraView({ yaw, pitch, fov }) {
-      // Проверяем, что все компоненты инициализированы
-      if (!this.camera || !this.renderer || !this.scene) {
-        return
-      }
-
-      try {
-        // Устанавливаем флаг применения параметров извне
-        this.applyingView = true
-
-        // 1. Применяем FOV (как в примере)
-        this.camera.fov = fov
-        this.camera.updateProjectionMatrix()
-
-        // 2. Применяем углы (Yaw/Pitch) с правильным порядком вращения
-        // Используем порядок 'YXZ' как в оригинальном примере из интернета
-        this.camera.rotation.set(pitch, yaw, 0, 'YXZ')
-        
-        // Обновляем матрицу камеры
-        this.camera.updateMatrix()
-        this.camera.updateMatrixWorld(true)
-        
-        // Принудительно рендерим один кадр для применения изменений
-        // Проверяем все компоненты перед рендерингом
-        if (this.composer && this.scene && this.camera && this.renderer) {
-          this.composer.render()
-        } else if (this.renderer && this.scene && this.camera) {
-          this.renderer.render(this.scene, this.camera)
+    screenToRaycast(clientX, clientY) {
+      const container = this.$refs.container;
+      if (!container || !this.camera) return null;
+      const rect = container.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(x, y), this.camera);
+      const intersects = raycaster.intersectObject(this.sphere);
+      return intersects.length > 0 ? intersects[0].point : null;
+    },
+    getHotspotAtPosition(clientX, clientY) {
+      const container = this.$refs.container;
+      if (!container || !this.camera) return null;
+      const rect = container.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(x, y), this.camera);
+      raycaster.params.Points.threshold = 20;
+      const sprites = Array.from(this.hotspotSpritesMap.values());
+      const intersects = raycaster.intersectObjects(sprites);
+      return intersects.length > 0 ? intersects[0].object.userData.hotspotId : null;
+    },
+    updateHotspots() {
+      if (!this.scene) return;
+      console.log('[PanoramaViewer] updateHotspots вызван, count:', this.hotspots.length);
+      const existingIds = new Set(this.hotspots.map(h => h.id));
+      for (const [id, sprite] of this.hotspotSpritesMap) {
+        if (!existingIds.has(id)) {
+          this.scene.remove(sprite); sprite.material.map.dispose(); sprite.material.dispose();
+          this.hotspotSpritesMap.delete(id);
         }
-        
-        // Сбрасываем флаг через небольшую задержку
-        setTimeout(() => {
-          this.applyingView = false
-        }, 100)
-      } catch (error) {
-        this.applyingView = false
+      }
+      let needsRender = false;
+      for (const hotspot of this.hotspots) {
+        let sprite = this.hotspotSpritesMap.get(hotspot.id);
+        const isSelected = hotspot.id === this.selectedHotspotId;
+        if (!sprite) {
+          sprite = this.createHotspotSprite(hotspot);
+          this.scene.add(sprite);
+          this.hotspotSpritesMap.set(hotspot.id, markRaw(sprite));
+          needsRender = true;
+        } else {
+          const pos = this.yawPitchToVector3(hotspot.position.yaw, hotspot.position.pitch);
+          if (sprite.position.distanceToSquared(pos) > 0.0001) {
+            sprite.position.copy(pos);
+            needsRender = true;
+          }
+          sprite.material.map.dispose();
+          sprite.material.map = this.createAimIconTexture(isSelected);
+        }
+        sprite.scale.set(this.hotspotSize, this.hotspotSize, 1);
+      }
+      if (needsRender && this.composer && this.scene && this.camera && this.renderer) {
+        this.composer.render();
       }
     },
-
-    // Методы для управления эффектами
+    updateHotspotSelection() {
+      for (const [id, sprite] of this.hotspotSpritesMap) {
+        const isSelected = id === this.selectedHotspotId;
+        sprite.material.map.dispose();
+        sprite.material.map = this.createAimIconTexture(isSelected);
+      }
+      if (this.composer && this.scene && this.camera && this.renderer) {
+        this.composer.render();
+      }
+    },
+    clearHotspots() {
+      for (const sprite of this.hotspotSpritesMap.values()) {
+        this.scene.remove(sprite); sprite.material.map.dispose(); sprite.material.dispose();
+      }
+      this.hotspotSpritesMap.clear();
+    },
+    addMouseControls() {
+      const container = this.$refs.container;
+      if (!container) return;
+      container.addEventListener('mousedown', (event) => {
+        const hotspotId = this.getHotspotAtPosition(event.clientX, event.clientY);
+        if (hotspotId) {
+          this.isDragging = true; this.draggingHotspot = hotspotId;
+          this.$emit('hotspot-click', hotspotId); container.style.cursor = 'grabbing';
+        } else {
+          this.isDragging = true; this.previousMousePosition = { x: event.clientX, y: event.clientY };
+          container.style.cursor = 'grabbing';
+        }
+      });
+      container.addEventListener('mousemove', (event) => {
+        if (this.draggingHotspot && this.selectedHotspotId) {
+          const point = this.screenToRaycast(event.clientX, event.clientY);
+          if (point) {
+            const yawPitch = this.vector3ToYawPitch(point);
+            this.$emit('hotspot-drag', { id: this.selectedHotspotId, yaw: yawPitch.yaw, pitch: yawPitch.pitch });
+          }
+          return;
+        }
+        const hotspotId = this.getHotspotAtPosition(event.clientX, event.clientY);
+        if (hotspotId !== this.hoveredHotspot) {
+          this.hoveredHotspot = hotspotId;
+          container.style.cursor = hotspotId ? 'pointer' : 'grab';
+        }
+        if (!this.isDragging) return;
+        const deltaX = event.clientX - this.previousMousePosition.x;
+        const deltaY = event.clientY - this.previousMousePosition.y;
+        this.camera.rotation.y -= deltaX * this.rotationSpeed;
+        this.camera.rotation.x -= deltaY * this.rotationSpeed;
+        const maxPitch = Math.PI / 2 - 0.1;
+        const minPitch = -Math.PI / 2 + 0.1;
+        this.camera.rotation.x = Math.max(minPitch, Math.min(maxPitch, this.camera.rotation.x));
+        this.previousMousePosition = { x: event.clientX, y: event.clientY };
+      });
+      container.addEventListener('mouseup', () => {
+        this.isDragging = false; this.draggingHotspot = null;
+        container.style.cursor = this.hoveredHotspot ? 'pointer' : 'grab';
+      });
+      container.addEventListener('mouseleave', () => {
+        this.isDragging = false; this.draggingHotspot = null;
+        container.style.cursor = 'grab';
+      });
+      container.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        let fov = this.camera.fov;
+        fov += event.deltaY > 0 ? 2 : -2;
+        fov = Math.max(30, Math.min(120, fov));
+        this.camera.fov = fov; this.camera.updateProjectionMatrix();
+      }, { passive: false });
+      container.addEventListener('dblclick', (event) => {
+        const now = Date.now();
+        if (now - this.lastClickTime < 300) { this.lastClickTime = now; return; }
+        this.lastClickTime = now;
+        const hotspotId = this.getHotspotAtPosition(event.clientX, event.clientY);
+        if (!hotspotId) {
+          const point = this.screenToRaycast(event.clientX, event.clientY);
+          if (point) {
+            const yawPitch = this.vector3ToYawPitch(point);
+            this.$emit('hotspot-dblclick', { yaw: yawPitch.yaw, pitch: yawPitch.pitch });
+          }
+        }
+      });
+      container.addEventListener('click', (event) => {
+        const hotspotId = this.getHotspotAtPosition(event.clientX, event.clientY);
+        if (hotspotId) { this.$emit('hotspot-click', hotspotId); }
+      });
+    },
+    animate() {
+      this.frameId = requestAnimationFrame(this.animate);
+      if (this.composer && this.scene && this.camera && this.renderer) {
+        this.composer.render();
+      } else if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
+      if (this.camera && !this.applyingView) { this.$emit('camera-move', this.getCameraView()); }
+    },
+    onResize() {
+      const container = this.$refs.container;
+      if (!container || !this.camera || !this.renderer) return;
+      this.camera.aspect = container.clientWidth / container.clientHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(container.clientWidth, container.clientHeight);
+      if (this.composer && this.scene && this.camera && this.renderer) {
+        this.composer.setSize(container.clientWidth, container.clientHeight);
+      }
+    },
+    getCameraView() { return { yaw: this.camera.rotation.y, pitch: this.camera.rotation.x, fov: this.camera.fov }; },
+    setCameraView({ yaw, pitch, fov }) {
+      if (!this.camera || !this.renderer || !this.scene) return;
+      this.applyingView = true;
+      try {
+        this.camera.fov = fov; this.camera.updateProjectionMatrix();
+        this.camera.rotation.set(pitch, yaw, 0, 'YXZ');
+        this.camera.updateMatrix(); this.camera.updateMatrixWorld(true);
+        console.log('[PanoramaViewer] Параметры камеры применены: yaw=', yaw.toFixed(4), ', pitch=', pitch.toFixed(4), ', fov=', fov);
+        if (this.composer && this.scene && this.camera && this.renderer) {
+          this.composer.render();
+        } else if (this.renderer && this.scene && this.camera) {
+          this.renderer.render(this.scene, this.camera);
+        }
+      } finally { setTimeout(() => { this.applyingView = false; }, 100); }
+    },
     setBrightness(value) {
-      this.brightness = Math.max(-1.0, Math.min(1.0, value))
+      this.brightness = Math.max(-1.0, Math.min(1.0, value));
       if (this.brightnessContrastPass) {
-        this.brightnessContrastPass.uniforms.brightness.value = this.brightness
+        this.brightnessContrastPass.uniforms.brightness.value = this.brightness;
+        console.log('[PanoramaViewer] Яркость применена:', this.brightness);
       }
     },
-
     setContrast(value) {
-      this.contrast = Math.max(0.0, Math.min(3.0, value))
+      this.contrast = Math.max(0.0, Math.min(3.0, value));
       if (this.brightnessContrastPass) {
-        this.brightnessContrastPass.uniforms.contrast.value = this.contrast
+        this.brightnessContrastPass.uniforms.contrast.value = this.contrast;
+        console.log('[PanoramaViewer] Контрастность применена:', this.contrast);
       }
     },
-
     setSaturation(value) {
-      this.saturation = Math.max(0.0, Math.min(3.0, value))
+      this.saturation = Math.max(0.0, Math.min(3.0, value));
       if (this.colorCorrectionPass) {
-        this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation)
+        this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation);
+        console.log('[PanoramaViewer] Насыщенность применена:', this.saturation);
       }
     },
-
-    getEffects() {
-      return {
-        brightness: this.brightness,
-        contrast: this.contrast,
-        saturation: this.saturation
+    forceRender() {
+      if (this.composer && this.scene && this.camera && this.renderer) {
+        this.composer.render();
+        console.log('[PanoramaViewer] Принудительный рендер выполнен');
       }
     }
-
-
-
   }
 }
 </script>
 
 <style scoped lang="scss">
-.panorama-viewer-wrapper {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.panorama-viewer {
-  width: 100%;
-  height: 100%;
-  background-color: hsl(0 0% 90%);
-  overflow: hidden;
-}
-
+.panorama-viewer-wrapper { position: relative; width: 100%; height: 100%; }
+.panorama-viewer { width: 100%; height: 100%; background-color: hsl(0 0% 90%); overflow: hidden; }
 .panorama-viewer__loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(3px);
-  font-size: 14px;
-  color: #333;
+  font-size: 14px; color: #333;
 }
 </style>

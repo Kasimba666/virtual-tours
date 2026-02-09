@@ -6,10 +6,10 @@
       </h2>
 
       <el-form
-          :model="form"
-          label-width="120px"
-          size="small"
-          class="scene-editor-page__form"
+        :model="form"
+        label-width="120px"
+        size="small"
+        class="scene-editor-page__form"
       >
         <el-form-item label="Название сцены">
           <el-input v-model="form.name" />
@@ -19,9 +19,9 @@
           <el-tab-pane label="Настройки вида" name="viewer">
             <el-form-item label="Панорама">
               <el-upload
-                  class="scene-editor-page__upload"
-                  :show-file-list="false"
-                  :before-upload="beforeUpload"
+                class="scene-editor-page__upload"
+                :show-file-list="false"
+                :before-upload="beforeUpload"
               >
                 <el-button size="small" type="primary">Загрузить панораму</el-button>
               </el-upload>
@@ -41,38 +41,38 @@
             <el-collapse v-model="activeCollapse">
               <el-collapse-item title="Параметры камеры" name="camera">
                 <div class="scene-editor-page__camera-controls">
-                  <el-form-item label="Yaw (горизонталь)">
+                  <el-form-item label="Yaw">
                     <el-input-number
-                        v-model="form.startView.yaw"
-                        :min="-Math.PI"
-                        :max="Math.PI"
-                        :step="0.1"
-                        :precision="2"
-                        :disabled="!form.panorama"
-                        @change="onCameraParamChange"
+                      v-model="form.startView.yaw"
+                      :min="-Math.PI"
+                      :max="Math.PI"
+                      :step="0.1"
+                      :precision="2"
+                      :disabled="!form.panorama"
+                      @input="onCameraParamChange"
                     />
                   </el-form-item>
 
-                  <el-form-item label="Pitch (вертикаль)">
+                  <el-form-item label="Pitch">
                     <el-input-number
-                        v-model="form.startView.pitch"
-                        :min="-Math.PI/2"
-                        :max="Math.PI/2"
-                        :step="0.1"
-                        :precision="2"
-                        :disabled="!form.panorama"
-                        @change="onCameraParamChange"
+                      v-model="form.startView.pitch"
+                      :min="-Math.PI/2"
+                      :max="Math.PI/2"
+                      :step="0.1"
+                      :precision="2"
+                      :disabled="!form.panorama"
+                      @input="onCameraParamChange"
                     />
                   </el-form-item>
 
-                  <el-form-item label="FOV (угол обзора)">
+                  <el-form-item label="FOV">
                     <el-input-number
-                        v-model="form.startView.fov"
-                        :min="30"
-                        :max="120"
-                        :step="1"
-                        :disabled="!form.panorama"
-                        @change="onCameraParamChange"
+                      v-model="form.startView.fov"
+                      :min="30"
+                      :max="120"
+                      :step="1"
+                      :disabled="!form.panorama"
+                      @input="onCameraParamChange"
                     />
                   </el-form-item>
                 </div>
@@ -82,37 +82,37 @@
                 <div class="scene-editor-page__effects-controls">
                   <el-form-item label="Яркость">
                     <el-input-number
-                        v-model="form.effects.brightness"
-                        :min="-1"
-                        :max="1"
-                        :step="0.1"
-                        :precision="1"
-                        :disabled="!form.panorama"
-                        @change="onEffectChange"
+                      v-model="form.effects.brightness"
+                      :min="-1"
+                      :max="1"
+                      :step="0.1"
+                      :precision="1"
+                      :disabled="!form.panorama"
+                      @input="onEffectChange"
                     />
                   </el-form-item>
 
                   <el-form-item label="Контрастность">
                     <el-input-number
-                        v-model="form.effects.contrast"
-                        :min="0"
-                        :max="3"
-                        :step="0.1"
-                        :precision="1"
-                        :disabled="!form.panorama"
-                        @change="onEffectChange"
+                      v-model="form.effects.contrast"
+                      :min="0"
+                      :max="3"
+                      :step="0.1"
+                      :precision="1"
+                      :disabled="!form.panorama"
+                      @input="onEffectChange"
                     />
                   </el-form-item>
 
                   <el-form-item label="Насыщенность">
                     <el-input-number
-                        v-model="form.effects.saturation"
-                        :min="0"
-                        :max="3"
-                        :step="0.1"
-                        :precision="1"
-                        :disabled="!form.panorama"
-                        @change="onEffectChange"
+                      v-model="form.effects.saturation"
+                      :min="0"
+                      :max="3"
+                      :step="0.1"
+                      :precision="1"
+                      :disabled="!form.panorama"
+                      @input="onEffectChange"
                     />
                   </el-form-item>
                 </div>
@@ -122,36 +122,44 @@
             <el-divider />
 
             <panorama-viewer
-                v-if="form.panorama"
-                ref="viewer"
-                :src="form.panorama"
-                @ready="onViewerReady"
-                @camera-move="onCameraMove"
-                class="scene-editor-page__viewer"
+              v-if="form.panorama"
+              ref="viewer"
+              :src="form.panorama"
+              :hotspots="[]"
+              @ready="onViewerReady"
+              @camera-move="onCameraMove"
+              class="scene-editor-page__viewer"
             />
           </el-tab-pane>
 
           <el-tab-pane label="Хотспоты" name="hotspots">
             <div class="hotspots-viewer">
               <panorama-viewer
-                  v-if="form.panorama && hotspotsViewerInitialized"
-                  ref="hotspotsViewer"
-                  :src="form.panorama"
-                  @ready="onHotspotsViewerReady"
-                  @camera-move="onCameraMove"
-                  class="hotspots-viewer__viewer"
+                v-if="form.panorama && hotspotsViewerInitialized"
+                ref="hotspotsViewer"
+                :src="form.panorama"
+                :hotspots="form.hotspots"
+                :selected-hotspot-id="selectedHotspotId"
+                @ready="onHotspotsViewerReady"
+                @camera-move="onCameraMove"
+                @hotspot-click="onHotspotClick"
+                @hotspot-dblclick="onHotspotDblClick"
+                @hotspot-drag="onHotspotDrag"
+                class="hotspots-viewer__viewer"
               />
             </div>
 
             <hotspots-editor
-                :panorama-loaded="form.panorama && hotspotsViewerInitialized"
-                :hotspots="form.hotspots"
-                :available-scenes="availableScenes"
-                @add-hotspot="addHotspot"
-                @remove-hotspot="removeHotspot"
-                @update-hotspot="updateHotspot"
-                @clear-hotspots="clearHotspots"
-                class="scene-editor-page__hotspots-editor"
+              :panorama-loaded="form.panorama && hotspotsViewerInitialized"
+              :hotspots="form.hotspots"
+              :available-scenes="availableScenes"
+              :selected-hotspot-id="selectedHotspotId"
+              @add-hotspot="addHotspot"
+              @remove-hotspot="removeHotspot"
+              @update-hotspot="updateHotspot"
+              @clear-hotspots="clearHotspots"
+              @select-hotspot="selectHotspot"
+              class="scene-editor-page__hotspots-editor"
             />
           </el-tab-pane>
         </el-tabs>
@@ -176,187 +184,170 @@
 import toursService from '@/services/toursService'
 import storageService from '@/services/storageService'
 import PanoramaViewer from '@/components/PanoramaViewer.vue'
-import { Loading, Check } from '@element-plus/icons-vue'
+import HotspotsEditor from '@/components/HotspotsEditor.vue'
+import { Loading } from '@element-plus/icons-vue'
 
 export default {
   name: 'SceneEditorPage',
-  components: { PanoramaViewer, Loading, Check },
+  components: { PanoramaViewer, HotspotsEditor, Loading },
+
   data() {
     return {
       uploading: false,
       sceneSaved: false,
       tour: null,
       sceneId: this.$route.params.sceneId,
-      loadingFromDatabase: false, // флаг загрузки из базы данных
-      applyingStartView: false,   // флаг применения параметров камеры
-      activeCollapse: [],         // активные сворачиваемые панели (по умолчанию свернуты)
-      activeTab: 'viewer',        // активная вкладка (по умолчанию "Настройки вида")
-      viewerInitialized: false,   // флаг инициализации панорамы во вкладке Настройки вида
-      hotspotsViewerInitialized: false, // флаг инициализации панорамы во вкладке Хотспоты
-      viewerCameraView: null,     // текущие параметры камеры во вкладке Настройки вида
-      hotspotsCameraView: null,   // текущие параметры камеры во вкладке Хотспоты
+      loadingFromDatabase: false,
+      applyingStartView: false,
+      activeCollapse: [],
+      activeTab: 'viewer',
+      viewerInitialized: false,
+      hotspotsViewerInitialized: false,
+      viewerCameraView: null,
+      hotspotsCameraView: null,
+      selectedHotspotId: null,
       form: {
         name: '',
         panorama: '',
         hotspots: [],
-        startView: {
-          yaw: 0,
-          pitch: 0,
-          fov: 60
-        },
-        effects: {
-          brightness: 0.1,
-          contrast: 0.3,
-          saturation: 0.9
-        }
+        startView: { yaw: 0, pitch: 0, fov: 60 },
+        effects: { brightness: 0.1, contrast: 0.3, saturation: 0.9 }
       }
     }
   },
-  created() {
-    this.loadTour()
-  },
+
   computed: {
     availableScenes() {
-      if (!this.tour || !this.tour.data || !this.tour.data.scenes) {
-        return []
-      }
-      
-      return Object.keys(this.tour.data.scenes).map((id) => ({
+      if (!this.tour?.data?.scenes) return []
+      return Object.keys(this.tour.data.scenes).map(id => ({
         id,
         name: this.tour.data.scenes[id].name || id
       }))
     }
   },
 
+  created() {
+    this.loadTour()
+  },
+
   methods: {
     loadTour() {
-      this.loadingFromDatabase = true // устанавливаем флаг загрузки
-      
+      this.loadingFromDatabase = true
       toursService.getTourById(this.$route.params.id)
-          .then((tour) => {
-            this.tour = tour
-            const scene = tour.data.scenes[this.sceneId]
-
-            if (scene) {
-              // Сохраняем оригинальные значения из базы данных
-              const originalStartView = scene.startView || {
-                yaw: 0,
-                pitch: 0,
-                fov: 60
-              }
-              
-              const originalEffects = scene.effects || {
-                brightness: 0.1,
-                contrast: 0.3,
-                saturation: 0.9
-              }
-
-              this.form = {
-                name: scene.name,
-                panorama: scene.panorama,
-                hotspots: scene.hotspots || [],
-                startView: originalStartView,
-                effects: originalEffects
-              }
-
-              console.log('Загруженные из базы данных параметры:')
-              console.log('startView:', originalStartView)
-              console.log('effects:', originalEffects)
+        .then((tour) => {
+          this.tour = tour
+          const scene = tour.data.scenes?.[this.sceneId]
+          if (scene) {
+            this.form = {
+              name: scene.name,
+              panorama: scene.panorama,
+              hotspots: scene.hotspots || [],
+              startView: scene.startView || { yaw: 0, pitch: 0, fov: 60 },
+              effects: scene.effects || { brightness: 0.1, contrast: 0.3, saturation: 0.9 }
             }
-          })
-          .catch((error) => console.error(error))
-          .finally(() => {
-            // Сбрасываем флаг через небольшую задержку, чтобы параметры успели примениться
-            setTimeout(() => {
-              this.loadingFromDatabase = false
-            }, 1000)
-          })
+          }
+        })
+        .catch(error => console.error(error))
+        .finally(() => { setTimeout(() => { this.loadingFromDatabase = false }, 1000) })
     },
 
     onCameraMove(view) {
-      // Обновляем параметры камеры в реальном времени при движении
-      // Но не меняем их, если мы только что загрузили сцену или применяем параметры
-      if (!this.loadingFromDatabase && !this.applyingStartView) {
-        // Определяем, из какой вкладки пришло событие
-        const isViewerTab = this.activeTab === 'viewer'
-        
-        if (isViewerTab) {
-          // Обновляем параметры для вкладки Настройки вида
-          this.viewerCameraView = {
-            yaw: view.yaw,
-            pitch: view.pitch,
-            fov: view.fov
-          }
-          
-          // Обновляем значения инпутов в форме
-          this.form.startView.yaw = view.yaw
-          this.form.startView.pitch = view.pitch
-          this.form.startView.fov = view.fov
-        } else {
-          // Обновляем параметры для вкладки Хотспоты
-          this.hotspotsCameraView = {
-            yaw: view.yaw,
-            pitch: view.pitch,
-            fov: view.fov
-          }
-        }
+      if (this.loadingFromDatabase || this.applyingStartView) return
+      const isViewerTab = this.activeTab === 'viewer'
+      const viewData = { yaw: view.yaw, pitch: view.pitch, fov: view.fov }
+      
+      if (isViewerTab) {
+        this.viewerCameraView = viewData
+        Object.assign(this.form.startView, viewData)
+      } else {
+        this.hotspotsCameraView = viewData
       }
     },
 
-    // Методы для работы с хотспотами
+    onHotspotClick(hotspotId) {
+      this.selectedHotspotId = hotspotId
+    },
+
+    selectHotspot(hotspotId) {
+      this.selectedHotspotId = hotspotId
+    },
+
+    onHotspotDblClick(position) {
+      this.$confirm('Создать новый хотспот в этой позиции?', 'Подтверждение', {
+        confirmButtonText: 'Да',
+        cancelButtonText: 'Нет',
+        type: 'info'
+      }).then(() => {
+        const newHotspot = {
+          id: 'hotspot-' + Date.now(),
+          type: 'scene',
+          name: 'Новый хотспот',
+          color: '#0066ff',
+          position: { yaw: position.yaw, pitch: position.pitch },
+          size: 30,
+          targetScene: this.availableScenes[0]?.id || '',
+          text: 'Описание хотспота'
+        }
+        this.form.hotspots.push(newHotspot)
+        this.selectedHotspotId = newHotspot.id
+        this.$message.success('Хотспот создан')
+      }).catch(() => {})
+    },
+
+    onHotspotDrag(data) {
+      const hotspot = this.form.hotspots.find(h => h.id === data.id)
+      if (hotspot) {
+        hotspot.position.yaw = data.yaw
+        hotspot.position.pitch = data.pitch
+      }
+    },
+
     addHotspot() {
       const currentView = this.hotspotsCameraView || this.viewerCameraView
-      
       if (!currentView) {
         this.$message.warning('Сначала установите камеру в нужное положение')
         return
       }
-
       const newHotspot = {
         id: 'hotspot-' + Date.now(),
         type: 'scene',
         name: 'Новый хотспот',
-        color: '#ff4444',
-        position: {
-          yaw: currentView.yaw,
-          pitch: currentView.pitch
-        },
+        color: '#0066ff',
+        position: { yaw: currentView.yaw, pitch: currentView.pitch },
         size: 30,
         targetScene: this.availableScenes[0]?.id || '',
         text: 'Описание хотспота'
       }
-
       this.form.hotspots.push(newHotspot)
+      this.selectedHotspotId = newHotspot.id
       this.$message.success('Хотспот добавлен')
     },
 
     removeHotspot(index) {
+      const hotspot = this.form.hotspots[index]
+      if (hotspot?.id === this.selectedHotspotId) {
+        this.selectedHotspotId = null
+      }
       this.form.hotspots.splice(index, 1)
       this.$message.success('Хотспот удален')
     },
 
     updateHotspot(index) {
-      // Хотспот уже обновлен в форме, ничего дополнительно делать не нужно
       this.$message.success('Хотспот обновлен')
     },
 
     clearHotspots() {
+      this.selectedHotspotId = null
       this.form.hotspots = []
       this.$message.success('Все хотспоты удалены')
     },
 
     beforeUpload(file) {
       this.uploading = true
-
       storageService.uploadPanorama(file, this.sceneId)
-          .then((url) => {
-            this.form.panorama = url
-          })
-          .catch((error) => console.error(error))
-          .finally(() => {
-            this.uploading = false
-          })
-
+        .then((url) => { this.form.panorama = url })
+        .catch(error => console.error(error))
+        .finally(() => { this.uploading = false })
       return false
     },
 
@@ -369,292 +360,119 @@ export default {
         startView: this.form.startView,
         effects: this.form.effects
       }
-
       toursService.saveTour(this.tour)
-          .then(() => {
-            this.$router.push({
-              name: 'tour-edit',
-              params: { id: this.tour.id }
-            })
-          })
-          .catch((error) => console.error(error))
+        .then(() => {
+          this.$router.push({ name: 'tour-edit', params: { id: this.tour.id } })
+        })
+        .catch(error => console.error(error))
     },
 
     onViewerReady() {
-      console.log('Панорама в вкладке Настройки вида готова')
-      
-      // Применяем начальные параметры камеры к панораме
       this.applyStartView()
     },
 
     applyStartView() {
       const viewer = this.$refs.viewer
-      if (!viewer || !this.form.panorama) {
-        return
-      }
-
-      // Устанавливаем флаг применения параметров
+      if (!viewer || !this.form.panorama) return
       this.applyingStartView = true
-
-      // Применяем параметры камеры с небольшой задержкой для асинхронной инициализации
       setTimeout(() => {
         try {
-          // Получаем оригинальные параметры из базы данных напрямую
-          const tour = this.tour
-          const scene = tour.data.scenes[this.sceneId]
-          const originalStartView = scene.startView || {
-            yaw: 0,
-            pitch: 0,
-            fov: 60
-          }
-          
-          console.log('Применяем оригинальные параметры камеры из базы данных:', originalStartView)
-          
-          // Создаем новый объект, чтобы избежать проблем с реактивностью
-          const cameraView = {
-            yaw: originalStartView.yaw,
-            pitch: originalStartView.pitch,
-            fov: originalStartView.fov
-          }
-          
-          viewer.setCameraView(cameraView)
-          
-          // Применяем эффекты
+          const scene = this.tour?.data?.scenes?.[this.sceneId]
+          const startView = scene?.startView || { yaw: 0, pitch: 0, fov: 60 }
+          viewer.setCameraView(startView)
           viewer.setBrightness(this.form.effects.brightness)
           viewer.setContrast(this.form.effects.contrast)
           viewer.setSaturation(this.form.effects.saturation)
-          
-          console.log('Параметры камеры успешно применены')
-        } catch (error) {
-          console.error('Ошибка при применении параметров камеры:', error)
         } finally {
-          // Сбрасываем флаг через небольшую задержку
-          setTimeout(() => {
-            this.applyingStartView = false
-          }, 300)
+          setTimeout(() => { this.applyingStartView = false }, 300)
         }
-      }, 100) // Небольшая задержка для асинхронной инициализации
+      }, 100)
     },
 
     backToTour() {
-      this.$router.push({
-        name: 'tour-edit',
-        params: { id: this.tour.id }
-      })
-    },
-    beforeUnmount() {
-      if (!this.sceneSaved && this.form.panorama) {
-        storageService.deleteFileByUrl(this.form.panorama)
-      }
-    },
-    setAsStartView() {
-      const viewer = this.$refs.viewer
-      if (!viewer) {
-        return
-      }
-
-      this.savingView = true
-
-      const view = viewer.getCameraView()
-      
-      // Сохраняем параметры камеры для текущей сцены
-      if (!this.tour.data.scenes[this.sceneId]) {
-        this.tour.data.scenes[this.sceneId] = {}
-      }
-      
-      this.tour.data.scenes[this.sceneId].startView = view
-      
-      // Также устанавливаем эту сцену как стартовую для всего тура
-      this.tour.data.startScene = this.sceneId
-      
-      // Показываем индикатор сохранения на короткое время
-      // Показываем индикатор сохранения на короткое время
-      setTimeout(() => {
-        this.savingView = false
-      }, 1000)
+      this.$router.push({ name: 'tour-edit', params: { id: this.tour.id } })
     },
 
     onCameraParamChange() {
-      console.log('onCameraParamChange вызван')
-      console.log('Новые параметры камеры:', this.form.startView)
-      
-      // Применяем изменения параметров камеры к панораме
       const viewer = this.$refs.viewer
       if (viewer && this.form.panorama) {
-        console.log('Применяем изменения параметров камеры к панораме...')
-        // Создаем новый объект, чтобы избежать проблем с реактивностью
-        const newView = {
-          yaw: this.form.startView.yaw,
-          pitch: this.form.startView.pitch,
-          fov: this.form.startView.fov
-        }
-        viewer.setCameraView(newView)
+        viewer.setCameraView(this.form.startView)
       }
     },
 
     onEffectChange() {
-      console.log('onEffectChange вызван')
-      console.log('Новые параметры эффектов:', this.form.effects)
-      
-      // Применяем изменения эффектов к панораме в основной вкладке
       const viewer = this.$refs.viewer
-      if (viewer && this.form.panorama && this.viewerInitialized) {
-        console.log('Применяем изменения эффектов к панораме...')
+      const hotspotsViewer = this.$refs.hotspotsViewer
+      if (viewer && this.form.panorama) {
         viewer.setBrightness(this.form.effects.brightness)
         viewer.setContrast(this.form.effects.contrast)
         viewer.setSaturation(this.form.effects.saturation)
       }
-      
-      // Применяем изменения эффектов к панораме в вкладке Хотспоты
-      const hotspotsViewer = this.$refs.hotspotsViewer
       if (hotspotsViewer && this.form.panorama) {
-        console.log('Применяем изменения эффектов к панораме в вкладке Хотспоты...')
         hotspotsViewer.setBrightness(this.form.effects.brightness)
         hotspotsViewer.setContrast(this.form.effects.contrast)
         hotspotsViewer.setSaturation(this.form.effects.saturation)
       }
     },
 
-    // Метод для обработки переключения вкладок
     onTabClick(tab) {
-      // Если перешли во вкладку "Настройки вида" и панорама еще не инициализирована
       if (tab.props.name === 'viewer' && this.form.panorama && !this.viewerInitialized) {
-        console.log('Инициализация панорамы во вкладке Настройки вида')
         this.viewerInitialized = true
-        
-        // Применяем начальные параметры к панораме во вкладке Настройки вида
         this.$nextTick(() => {
           const viewer = this.$refs.viewer
           if (viewer && this.form.panorama) {
-            console.log('Применяем начальные параметры к панораме во вкладке Настройки вида...')
-            
-            // Получаем оригинальные параметры из базы данных напрямую
-            const tour = this.tour
-            const scene = tour.data.scenes[this.sceneId]
-            const originalStartView = scene.startView || {
-              yaw: 0,
-              pitch: 0,
-              fov: 60
-            }
-            
-            console.log('Оригинальные параметры камеры из базы данных:', originalStartView)
-            
-            // Создаем новый объект, чтобы избежать проблем с реактивности
-            const cameraView = {
-              yaw: originalStartView.yaw,
-              pitch: originalStartView.pitch,
-              fov: originalStartView.fov
-            }
-            
-            viewer.setCameraView(cameraView)
+            const scene = this.tour?.data?.scenes?.[this.sceneId]
+            const startView = scene?.startView || { yaw: 0, pitch: 0, fov: 60 }
+            viewer.setCameraView(startView)
             viewer.setBrightness(this.form.effects.brightness)
             viewer.setContrast(this.form.effects.contrast)
             viewer.setSaturation(this.form.effects.saturation)
           }
         })
       }
-      
-      // Если перешли во вкладку "Хотспоты" и панорама еще не инициализирована
       if (tab.props.name === 'hotspots' && this.form.panorama && !this.hotspotsViewerInitialized) {
-        console.log('Инициализация панорамы во вкладке Хотспоты')
         this.hotspotsViewerInitialized = true
-        
-        // Применяем начальные параметры к панораме во вкладке Хотспоты
         this.$nextTick(() => {
           const viewer = this.$refs.hotspotsViewer
           if (viewer && this.form.panorama) {
-            console.log('Применяем начальные параметры к панораме во вкладке Хотспоты...')
-            
-            // Получаем оригинальные параметры из базы данных напрямую
-            const tour = this.tour
-            const scene = tour.data.scenes[this.sceneId]
-            const originalStartView = scene.startView || {
-              yaw: 0,
-              pitch: 0,
-              fov: 60
-            }
-            
-            console.log('Оригинальные параметры камеры из базы данных:', originalStartView)
-            
-            // Создаем новый объект, чтобы избежать проблем с реактивности
-            const cameraView = {
-              yaw: originalStartView.yaw,
-              pitch: originalStartView.pitch,
-              fov: originalStartView.fov
-            }
-            
-            // Применяем параметры с небольшой задержкой для надежности
+            const scene = this.tour?.data?.scenes?.[this.sceneId]
+            const startView = scene?.startView || { yaw: 0, pitch: 0, fov: 60 }
             setTimeout(() => {
-              viewer.setCameraView(cameraView)
+              viewer.setCameraView(startView)
               viewer.setBrightness(this.form.effects.brightness)
               viewer.setContrast(this.form.effects.contrast)
               viewer.setSaturation(this.form.effects.saturation)
-              
-              // Сохраняем эти параметры как начальные для вкладки Хотспоты
-              this.hotspotsCameraView = cameraView
+              viewer.forceRender()
+              this.hotspotsCameraView = startView
             }, 100)
           }
         })
       }
     },
 
-    // Метод для обработки готовности панорамы в вкладке Хотспоты
     onHotspotsViewerReady() {
-      console.log('Панорама в вкладке Хотспоты готова')
-      
-      // Добавляем небольшую задержку перед применением эффектов, чтобы избежать ошибок WebGL
       setTimeout(() => {
         const viewer = this.$refs.hotspotsViewer
         if (viewer && this.form.panorama) {
-          console.log('Применяем эффекты к панораме в вкладке Хотспоты...')
           viewer.setBrightness(this.form.effects.brightness)
           viewer.setContrast(this.form.effects.contrast)
           viewer.setSaturation(this.form.effects.saturation)
-          
-          // Применяем начальные параметры камеры из базы данных при первом открытии
           if (!this.hotspotsCameraView) {
-            console.log('Применяем начальные параметры камеры из базы данных к панораме в вкладке Хотспоты...')
-            
-            // Получаем оригинальные параметры из базы данных напрямую
-            const tour = this.tour
-            const scene = tour.data.scenes[this.sceneId]
-            const originalStartView = scene.startView || {
-              yaw: 0,
-              pitch: 0,
-              fov: 60
-            }
-            
-            console.log('Оригинальные параметры камеры из базы данных:', originalStartView)
-            
-            // Создаем новый объект, чтобы избежать проблем с реактивностью
-            const cameraView = {
-              yaw: originalStartView.yaw,
-              pitch: originalStartView.pitch,
-              fov: originalStartView.fov
-            }
-            
-            viewer.setCameraView(cameraView)
-            
-            // Сохраняем эти параметры как начальные для вкладки Хотспоты
-            this.hotspotsCameraView = cameraView
+            const scene = this.tour?.data?.scenes?.[this.sceneId]
+            const startView = scene?.startView || { yaw: 0, pitch: 0, fov: 60 }
+            viewer.setCameraView(startView)
+            this.hotspotsCameraView = startView
           } else {
-            console.log('Применяем текущие параметры камеры для вкладки Хотспоты...')
             viewer.setCameraView(this.hotspotsCameraView)
           }
-          
-          // Повторно применяем эффекты через еще одну небольшую задержку
-          setTimeout(() => {
-            if (viewer && this.form.panorama) {
-              console.log('Повторно применяем эффекты к панораме в вкладке Хотспоты...')
-              viewer.setBrightness(this.form.effects.brightness)
-              viewer.setContrast(this.form.effects.contrast)
-              viewer.setSaturation(this.form.effects.saturation)
-            }
-          }, 50)
+          // Ensure hotspots are rendered
+          if (this.form.hotspots && this.form.hotspots.length > 0) {
+            viewer.updateHotspots()
+          }
+          viewer.forceRender()
         }
       }, 200)
     }
-
   }
 }
 </script>
@@ -675,10 +493,6 @@ export default {
   margin: 0 0 0.5rem 0;
 }
 
-.scene-editor-page__subtitle {
-  margin: 0.5rem 0;
-}
-
 .scene-editor-page__viewer {
   height: 400px;
   background-color: hsl(0 0% 90%);
@@ -690,25 +504,7 @@ export default {
   color: hsl(0 0% 40%);
 }
 
-.scene-editor-page__camera-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-end;
-  
-  .el-form-item {
-    margin-bottom: 0;
-    
-    .el-form-item__label {
-      font-size: 12px;
-      color: hsl(0 0% 40%);
-    }
-    
-    .el-input-number {
-      width: 100%;
-    }
-  }
-}
-
+.scene-editor-page__camera-controls,
 .scene-editor-page__effects-controls {
   display: flex;
   gap: 1rem;
@@ -721,14 +517,9 @@ export default {
       font-size: 12px;
       color: hsl(0 0% 40%);
     }
-    
-    .el-input-number {
-      width: 100%;
-    }
   }
 }
 
-// Стили для вкладки Хотспоты
 .hotspots-viewer {
   height: 400px;
   background-color: hsl(0 0% 90%);
