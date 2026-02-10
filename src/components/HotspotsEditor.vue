@@ -99,7 +99,7 @@
             <el-form-item label="Цель" v-if="hotspot.type === 'scene'">
               <el-select v-model="hotspot.targetScene" @change="$emit('update-hotspot', index)">
                 <el-option
-                  v-for="scene in availableScenes"
+                  v-for="scene in filteredScenes"
                   :key="scene.id"
                   :label="scene.name"
                   :value="scene.id"
@@ -146,9 +146,18 @@ export default {
     selectedHotspotId: {
       type: String,
       default: null
+    },
+    currentSceneId: {
+      type: String,
+      default: null
     }
   },
-  emits: ['add-hotspot', 'remove-hotspot', 'update-hotspot', 'clear-hotspots', 'select-hotspot']
+  emits: ['add-hotspot', 'remove-hotspot', 'update-hotspot', 'clear-hotspots', 'select-hotspot'],
+  computed: {
+    filteredScenes() {
+      return this.availableScenes.filter(scene => scene.id !== this.currentSceneId)
+    }
+  }
 }
 </script>
 

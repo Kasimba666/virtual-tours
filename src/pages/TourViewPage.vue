@@ -8,7 +8,9 @@
             v-if="currentPanorama"
             ref="viewer"
             :src="currentPanorama"
+            :hotspots="currentHotspots"
             @ready="applyStartView"
+            @hotspot-click="onHotspotClick"
             class="tour-view-page__viewer-canvas"
         />
 
@@ -68,6 +70,15 @@ export default {
     currentPanorama() {
       if (!this.tour || !this.currentSceneId) return null
       return this.tour.data.scenes[this.currentSceneId]?.panorama || null
+    },
+
+    currentHotspots() {
+      if (!this.tour || !this.currentSceneId) return []
+      const scene = this.tour.data.scenes[this.currentSceneId]
+      if (!scene || !scene.hotspots) return []
+      
+      // Фильтруем хотспоты типа "scene" и возвращаем их
+      return scene.hotspots.filter(h => h.type === 'scene')
     }
   },
 
@@ -137,8 +148,23 @@ export default {
       setTimeout(() => {
         this.viewApplied = false
       }, 100)
-    }
+    },
 
+    onHotspotClick(hotspotId) {
+      // Ищем хотспот во всех сценах
+      for (const [sceneId, scene] of Object.entries(this.tour.data.scenes)) {
+        const hotspot = scene.hotspots?.find(h => h.id === hotspotId)
+        if (hotspot && hotspot.type === 'scene' && hotspot.targetScene) {
+          // Проверяем, что целевая сцена существует
+          if (this.tour.data.scenes[hotspot.targetScene]) {
+            console.log('TourViewPage: Переходим к сцене', hotspot.targetScene)
+            this.currentSceneId = hotspot.targetScene
+            this.viewApplied = false
+            return
+          }
+        }
+      }
+    }
   }
 }
 </script>

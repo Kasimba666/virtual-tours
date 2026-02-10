@@ -154,6 +154,7 @@
               :hotspots="form.hotspots"
               :available-scenes="availableScenes"
               :selected-hotspot-id="selectedHotspotId"
+              :current-scene-id="sceneId"
               @add-hotspot="addHotspot"
               @remove-hotspot="removeHotspot"
               @update-hotspot="updateHotspot"
@@ -278,6 +279,7 @@ export default {
         cancelButtonText: 'Нет',
         type: 'info'
       }).then(() => {
+        const availableScenes = this.availableScenes.filter(s => s.id !== this.sceneId)
         const newHotspot = {
           id: 'hotspot-' + Date.now(),
           type: 'scene',
@@ -285,7 +287,7 @@ export default {
           color: '#0066ff',
           position: { yaw: position.yaw, pitch: position.pitch },
           size: 30,
-          targetScene: this.availableScenes[0]?.id || '',
+          targetScene: availableScenes[0]?.id || '',
           text: 'Описание хотспота'
         }
         this.form.hotspots.push(newHotspot)
@@ -308,6 +310,7 @@ export default {
         this.$message.warning('Сначала установите камеру в нужное положение')
         return
       }
+      const availableScenes = this.availableScenes.filter(s => s.id !== this.sceneId)
       const newHotspot = {
         id: 'hotspot-' + Date.now(),
         type: 'scene',
@@ -315,7 +318,7 @@ export default {
         color: '#0066ff',
         position: { yaw: currentView.yaw, pitch: currentView.pitch },
         size: 30,
-        targetScene: this.availableScenes[0]?.id || '',
+        targetScene: availableScenes[0]?.id || '',
         text: 'Описание хотспота'
       }
       this.form.hotspots.push(newHotspot)
