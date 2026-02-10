@@ -284,9 +284,7 @@ export default {
           id: 'hotspot-' + Date.now(),
           type: 'scene',
           name: 'Новый хотспот',
-          color: '#0066ff',
           position: { yaw: position.yaw, pitch: position.pitch },
-          size: 30,
           targetScene: availableScenes[0]?.id || '',
           text: 'Описание хотспота'
         }
@@ -315,9 +313,7 @@ export default {
         id: 'hotspot-' + Date.now(),
         type: 'scene',
         name: 'Новый хотспот',
-        color: '#0066ff',
         position: { yaw: currentView.yaw, pitch: currentView.pitch },
-        size: 30,
         targetScene: availableScenes[0]?.id || '',
         text: 'Описание хотспота'
       }

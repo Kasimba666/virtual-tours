@@ -29,11 +29,25 @@ export default {
   emits: ['ready', 'camera-move', 'hotspot-click', 'hotspot-dblclick', 'hotspot-drag'],
   data() {
     return {
-      loading: false, frameId: null, readyEmitted: false, initialized: false,
-      applyingView: false, isDragging: false, previousMousePosition: { x: 0, y: 0 },
-      rotationSpeed: 0.002, brightness: 0.1, contrast: 0.3, saturation: 0.9,
-      hoveredHotspot: null, draggingHotspot: null, lastClickTime: 0, hotspotSize: 30,
-      hotspotSpritesMap: new Map()
+      loading: false,
+      frameId: null,
+      readyEmitted: false,
+      initialized: false,
+      applyingView: false,
+      isDragging: false,
+      previousMousePosition: { x: 0, y: 0 },
+      rotationSpeed: 0.002,
+      brightness: 0.1,
+      contrast: 0.3,
+      saturation: 0.9,
+      hoveredHotspot: null,
+      draggingHotspot: null,
+      lastClickTime: 0,
+      hotspotSize: 30,
+      hotspotSpritesMap: new Map(),
+      aimTexture: null,
+      aimSelectedTexture: null,
+      rankTexture: null
     };
   },
   watch: {
@@ -42,19 +56,107 @@ export default {
     selectedHotspotId() { this.updateHotspotSelection(); }
   },
   mounted() {
-    this.renderer = null; this.scene = null; this.camera = null; this.sphere = null; this.composer = null;
+    this.renderer = null;
+    this.scene = null;
+    this.camera = null;
+    this.sphere = null;
+    this.composer = null;
     this.animate = this.animate.bind(this);
-    this.$nextTick(() => { this.init(); this.loadTexture(); window.addEventListener('resize', this.onResize); this.addMouseControls(); });
+    this.$nextTick(() => {
+      this.preloadTextures();
+      this.init();
+      this.loadTexture();
+      window.addEventListener('resize', this.onResize);
+      this.addMouseControls();
+    });
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.onResize);
     this.clearHotspots();
     if (this.frameId) { cancelAnimationFrame(this.frameId); this.frameId = null; }
-    if (this.renderer) { this.renderer.dispose(); this.renderer.forceContextLoss(); this.renderer.domElement = null; this.renderer = null; }
+    if (this.renderer) {
+      this.renderer.dispose();
+      this.renderer.forceContextLoss();
+      this.renderer.domElement = null;
+      this.renderer = null;
+    }
     if (this.composer) { this.composer.dispose(); this.composer = null; }
-    this.scene = null; this.camera = null; this.sphere = null;
+    this.scene = null;
+    this.camera = null;
+    this.sphere = null;
   },
   methods: {
+    preloadTextures() {
+      const size = 30;
+      const aimCanvas = document.createElement('canvas');
+      aimCanvas.width = size;
+      aimCanvas.height = size;
+      const aimCtx = aimCanvas.getContext('2d');
+      aimCtx.strokeStyle = 'hsl(220 100% 50%)';
+      aimCtx.fillStyle = 'hsl(220 100% 50%)';
+      aimCtx.lineWidth = 2;
+      aimCtx.beginPath();
+      aimCtx.arc(size / 2, size / 2, size * 0.35, 0, Math.PI * 2);
+      aimCtx.stroke();
+      aimCtx.beginPath();
+      aimCtx.arc(size / 2, size / 2, 2, 0, Math.PI * 2);
+      aimCtx.fill();
+      aimCtx.beginPath();
+      aimCtx.moveTo(size / 2, 0);
+      aimCtx.lineTo(size / 2, size / 2 - size * 0.35);
+      aimCtx.moveTo(size / 2, size / 2 + size * 0.35);
+      aimCtx.lineTo(size / 2, size);
+      aimCtx.moveTo(0, size / 2);
+      aimCtx.lineTo(size / 2 - size * 0.35, size / 2);
+      aimCtx.moveTo(size / 2 + size * 0.35, size / 2);
+      aimCtx.lineTo(size, size / 2);
+      aimCtx.stroke();
+      this.aimTexture = new THREE.CanvasTexture(aimCanvas);
+      this.aimTexture.needsUpdate = true;
+
+      const aimSelectedCanvas = document.createElement('canvas');
+      aimSelectedCanvas.width = size;
+      aimSelectedCanvas.height = size;
+      const aimSelectedCtx = aimSelectedCanvas.getContext('2d');
+      aimSelectedCtx.strokeStyle = 'hsl(0 100% 50%)';
+      aimSelectedCtx.fillStyle = 'hsl(0 100% 50%)';
+      aimSelectedCtx.lineWidth = 2;
+      aimSelectedCtx.beginPath();
+      aimSelectedCtx.arc(size / 2, size / 2, size * 0.35, 0, Math.PI * 2);
+      aimSelectedCtx.stroke();
+      aimSelectedCtx.beginPath();
+      aimSelectedCtx.arc(size / 2, size / 2, 2, 0, Math.PI * 2);
+      aimSelectedCtx.fill();
+      aimSelectedCtx.beginPath();
+      aimSelectedCtx.moveTo(size / 2, 0);
+      aimSelectedCtx.lineTo(size / 2, size / 2 - size * 0.35);
+      aimSelectedCtx.moveTo(size / 2, size / 2 + size * 0.35);
+      aimSelectedCtx.lineTo(size / 2, size);
+      aimSelectedCtx.moveTo(0, size / 2);
+      aimSelectedCtx.lineTo(size / 2 - size * 0.35, size / 2);
+      aimSelectedCtx.moveTo(size / 2 + size * 0.35, size / 2);
+      aimSelectedCtx.lineTo(size, size / 2);
+      aimSelectedCtx.stroke();
+      this.aimSelectedTexture = new THREE.CanvasTexture(aimSelectedCanvas);
+      this.aimSelectedTexture.needsUpdate = true;
+
+      const rankCanvas = document.createElement('canvas');
+      rankCanvas.width = size;
+      rankCanvas.height = size;
+      const rankCtx = rankCanvas.getContext('2d');
+      rankCtx.fillStyle = 'hsl(220 100% 50%)';
+      rankCtx.beginPath();
+      rankCtx.arc(size / 2, size / 2 - size * 0.25, 4, 0, Math.PI * 2);
+      rankCtx.fill();
+      rankCtx.beginPath();
+      rankCtx.arc(size / 2, size / 2, 4, 0, Math.PI * 2);
+      rankCtx.fill();
+      rankCtx.beginPath();
+      rankCtx.arc(size / 2, size / 2 + size * 0.25, 4, 0, Math.PI * 2);
+      rankCtx.fill();
+      this.rankTexture = new THREE.CanvasTexture(rankCanvas);
+      this.rankTexture.needsUpdate = true;
+    },
     init() {
       const container = this.$refs.container;
       if (!container) return;
@@ -80,9 +182,7 @@ export default {
       this.colorCorrectionPass = new ShaderPass(ColorCorrectionShader);
       this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation);
       this.composer.addPass(this.colorCorrectionPass);
-      console.log('[PanoramaViewer] Эффекты инициализированы');
       this.initialized = true;
-      // Render hotspots if they were passed before scene was ready
       if (this.hotspots && this.hotspots.length > 0) {
         this.updateHotspots();
       }
@@ -98,72 +198,16 @@ export default {
         if (!this.readyEmitted) { this.readyEmitted = true; setTimeout(() => { this.$emit('ready'); }, 200); }
       }, undefined, (error) => { console.error('Error loading panorama:', error); this.loading = false; });
     },
-    createAimIconTexture(isSelected, hotspotColor = '#0066ff') {
-      const size = 30;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      
-      const color = isSelected ? '#ff0000' : hotspotColor;
-      
-      // Draw Element Plus Aim icon as SVG path on canvas
-      // The Aim icon consists of crosshairs with a circle
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      
-      // Outer circle
-      ctx.beginPath();
-      ctx.arc(size / 2, size / 2, size * 0.35, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Center dot
-      ctx.beginPath();
-      ctx.arc(size / 2, size / 2, 2, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Vertical line (top)
-      ctx.beginPath();
-      ctx.moveTo(size / 2, 0);
-      ctx.lineTo(size / 2, size / 2 - size * 0.35);
-      ctx.stroke();
-      
-      // Vertical line (bottom)
-      ctx.beginPath();
-      ctx.moveTo(size / 2, size / 2 + size * 0.35);
-      ctx.lineTo(size / 2, size);
-      ctx.stroke();
-      
-      // Horizontal line (left)
-      ctx.beginPath();
-      ctx.moveTo(0, size / 2);
-      ctx.lineTo(size / 2 - size * 0.35, size / 2);
-      ctx.stroke();
-      
-      // Horizontal line (right)
-      ctx.beginPath();
-      ctx.moveTo(size / 2 + size * 0.35, size / 2);
-      ctx.lineTo(size, size / 2);
-      ctx.stroke();
-      
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.needsUpdate = true;
-      return texture;
-    },
     createHotspotSprite(hotspot) {
       const isSelected = hotspot.id === this.selectedHotspotId;
-      const color = hotspot.color || '#0066ff';
-      const texture = this.createAimIconTexture(isSelected, color);
+      const texture = isSelected ? this.aimSelectedTexture : this.aimTexture;
       const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false, transparent: true, opacity: 1 });
       const sprite = new THREE.Sprite(material);
       sprite.scale.set(this.hotspotSize, this.hotspotSize, 1);
       sprite.renderOrder = 9999;
       const pos = this.yawPitchToVector3(hotspot.position.yaw, hotspot.position.pitch);
       sprite.position.copy(pos);
-      sprite.userData = { hotspotId: hotspot.id, hotspotColor: color };
+      sprite.userData = { hotspotId: hotspot.id };
       return sprite;
     },
     yawPitchToVector3(yaw, pitch) {
@@ -205,12 +249,13 @@ export default {
       return intersects.length > 0 ? intersects[0].object.userData.hotspotId : null;
     },
     updateHotspots() {
-      if (!this.scene) return;
-      console.log('[PanoramaViewer] updateHotspots вызван, count:', this.hotspots.length);
+      if (!this.scene || !this.aimTexture) return;
       const existingIds = new Set(this.hotspots.map(h => h.id));
       for (const [id, sprite] of this.hotspotSpritesMap) {
         if (!existingIds.has(id)) {
-          this.scene.remove(sprite); sprite.material.map.dispose(); sprite.material.dispose();
+          this.scene.remove(sprite);
+          sprite.material.map.dispose();
+          sprite.material.dispose();
           this.hotspotSpritesMap.delete(id);
         }
       }
@@ -218,7 +263,6 @@ export default {
       for (const hotspot of this.hotspots) {
         let sprite = this.hotspotSpritesMap.get(hotspot.id);
         const isSelected = hotspot.id === this.selectedHotspotId;
-        const hotspotColor = hotspot.color || '#0066ff';
         if (!sprite) {
           sprite = this.createHotspotSprite(hotspot);
           this.scene.add(sprite);
@@ -230,8 +274,7 @@ export default {
             sprite.position.copy(pos);
             needsRender = true;
           }
-          sprite.material.map.dispose();
-          sprite.material.map = this.createAimIconTexture(isSelected, hotspotColor);
+          sprite.material.map = isSelected ? this.aimSelectedTexture : this.aimTexture;
         }
         sprite.scale.set(this.hotspotSize, this.hotspotSize, 1);
       }
@@ -240,11 +283,10 @@ export default {
       }
     },
     updateHotspotSelection() {
+      if (!this.aimTexture || !this.aimSelectedTexture) return;
       for (const [id, sprite] of this.hotspotSpritesMap) {
         const isSelected = id === this.selectedHotspotId;
-        const hotspotColor = sprite.userData.hotspotColor || '#0066ff';
-        sprite.material.map.dispose();
-        sprite.material.map = this.createAimIconTexture(isSelected, hotspotColor);
+        sprite.material.map = isSelected ? this.aimSelectedTexture : this.aimTexture;
       }
       if (this.composer && this.scene && this.camera && this.renderer) {
         this.composer.render();
@@ -252,7 +294,9 @@ export default {
     },
     clearHotspots() {
       for (const sprite of this.hotspotSpritesMap.values()) {
-        this.scene.remove(sprite); sprite.material.map.dispose(); sprite.material.dispose();
+        this.scene.remove(sprite);
+        sprite.material.map.dispose();
+        sprite.material.dispose();
       }
       this.hotspotSpritesMap.clear();
     },
@@ -262,10 +306,17 @@ export default {
       container.addEventListener('mousedown', (event) => {
         const hotspotId = this.getHotspotAtPosition(event.clientX, event.clientY);
         if (hotspotId) {
-          this.isDragging = true; this.draggingHotspot = hotspotId;
-          this.$emit('hotspot-click', hotspotId); container.style.cursor = 'grabbing';
+          const sprite = this.hotspotSpritesMap.get(hotspotId);
+          this.isDragging = true;
+          this.draggingHotspot = hotspotId;
+          this.$emit('hotspot-click', hotspotId);
+          container.style.cursor = 'grabbing';
+          if (sprite && this.rankTexture) {
+            sprite.material.map = this.rankTexture;
+          }
         } else {
-          this.isDragging = true; this.previousMousePosition = { x: event.clientX, y: event.clientY };
+          this.isDragging = true;
+          this.previousMousePosition = { x: event.clientX, y: event.clientY };
           container.style.cursor = 'grabbing';
         }
       });
@@ -294,11 +345,25 @@ export default {
         this.previousMousePosition = { x: event.clientX, y: event.clientY };
       });
       container.addEventListener('mouseup', () => {
-        this.isDragging = false; this.draggingHotspot = null;
+        if (this.draggingHotspot && this.selectedHotspotId) {
+          const sprite = this.hotspotSpritesMap.get(this.draggingHotspot);
+          if (sprite && this.aimSelectedTexture) {
+            sprite.material.map = this.aimSelectedTexture;
+          }
+        }
+        this.isDragging = false;
+        this.draggingHotspot = null;
         container.style.cursor = this.hoveredHotspot ? 'pointer' : 'grab';
       });
       container.addEventListener('mouseleave', () => {
-        this.isDragging = false; this.draggingHotspot = null;
+        if (this.draggingHotspot && this.selectedHotspotId) {
+          const sprite = this.hotspotSpritesMap.get(this.draggingHotspot);
+          if (sprite && this.aimSelectedTexture) {
+            sprite.material.map = this.aimSelectedTexture;
+          }
+        }
+        this.isDragging = false;
+        this.draggingHotspot = null;
         container.style.cursor = 'grab';
       });
       container.addEventListener('wheel', (event) => {
@@ -306,7 +371,8 @@ export default {
         let fov = this.camera.fov;
         fov += event.deltaY > 0 ? 2 : -2;
         fov = Math.max(30, Math.min(120, fov));
-        this.camera.fov = fov; this.camera.updateProjectionMatrix();
+        this.camera.fov = fov;
+        this.camera.updateProjectionMatrix();
       }, { passive: false });
       container.addEventListener('dblclick', (event) => {
         const now = Date.now();
@@ -350,10 +416,11 @@ export default {
       if (!this.camera || !this.renderer || !this.scene) return;
       this.applyingView = true;
       try {
-        this.camera.fov = fov; this.camera.updateProjectionMatrix();
+        this.camera.fov = fov;
+        this.camera.updateProjectionMatrix();
         this.camera.rotation.set(pitch, yaw, 0, 'YXZ');
-        this.camera.updateMatrix(); this.camera.updateMatrixWorld(true);
-        console.log('[PanoramaViewer] Параметры камеры применены: yaw=', yaw.toFixed(4), ', pitch=', pitch.toFixed(4), ', fov=', fov);
+        this.camera.updateMatrix();
+        this.camera.updateMatrixWorld(true);
         if (this.composer && this.scene && this.camera && this.renderer) {
           this.composer.render();
         } else if (this.renderer && this.scene && this.camera) {
@@ -365,27 +432,23 @@ export default {
       this.brightness = Math.max(-1.0, Math.min(1.0, value));
       if (this.brightnessContrastPass) {
         this.brightnessContrastPass.uniforms.brightness.value = this.brightness;
-        console.log('[PanoramaViewer] Яркость применена:', this.brightness);
       }
     },
     setContrast(value) {
       this.contrast = Math.max(0.0, Math.min(3.0, value));
       if (this.brightnessContrastPass) {
         this.brightnessContrastPass.uniforms.contrast.value = this.contrast;
-        console.log('[PanoramaViewer] Контрастность применена:', this.contrast);
       }
     },
     setSaturation(value) {
       this.saturation = Math.max(0.0, Math.min(3.0, value));
       if (this.colorCorrectionPass) {
         this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation);
-        console.log('[PanoramaViewer] Насыщенность применена:', this.saturation);
       }
     },
     forceRender() {
       if (this.composer && this.scene && this.camera && this.renderer) {
         this.composer.render();
-        console.log('[PanoramaViewer] Принудительный рендер выполнен');
       }
     }
   }
@@ -398,8 +461,8 @@ export default {
 .panorama-viewer__loading {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   justify-content: center; align-items: center;
-  background: rgba(255, 255, 255, 0.6);
+  background: hsla(0, 0%, 100%, 0.6);
   backdrop-filter: blur(3px);
-  font-size: 14px; color: #333;
+  font-size: 14px; color: hsl(0 0% 20%);
 }
 </style>

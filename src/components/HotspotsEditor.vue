@@ -34,7 +34,6 @@
               <el-icon><Location /></el-icon>
               {{ hotspot.name || `Хотспот ${index + 1}` }}
             </span>
-            <span class="hotspots-editor__item-color" :style="{ backgroundColor: hotspot.color }"></span>
           </div>
           <el-button
             size="small"
@@ -48,18 +47,14 @@
         <div class="hotspots-editor__item-content">
           <el-form size="small" label-width="70px">
             <el-form-item label="Тип">
-              <el-select v-model="hotspot.type" @change="$emit('update-hotspot', index)">
+              <el-select v-model="hotspot.type" @change="onFieldChange(index)">
                 <el-option label="Сцена" value="scene" />
                 <el-option label="Текст" value="text" />
               </el-select>
             </el-form-item>
 
             <el-form-item label="Название">
-              <el-input v-model="hotspot.name" @input="$emit('update-hotspot', index)" />
-            </el-form-item>
-
-            <el-form-item label="Цвет">
-              <el-color-picker v-model="hotspot.color" @change="$emit('update-hotspot', index)" />
+              <el-input v-model="hotspot.name" @input="onNameInput(index)" />
             </el-form-item>
 
             <el-form-item label="Позиция">
@@ -71,7 +66,7 @@
                   :step="0.01"
                   :precision="2"
                   size="small"
-                  @change="$emit('update-hotspot', index)"
+                  @change="onFieldChange(index)"
                 />
                 <el-input-number
                   v-model="hotspot.position.pitch"
@@ -80,24 +75,13 @@
                   :step="0.01"
                   :precision="2"
                   size="small"
-                  @change="$emit('update-hotspot', index)"
+                  @change="onFieldChange(index)"
                 />
               </div>
             </el-form-item>
 
-            <el-form-item label="Размер">
-              <el-input-number
-                v-model="hotspot.size"
-                :min="10"
-                :max="100"
-                :step="1"
-                size="small"
-                @change="$emit('update-hotspot', index)"
-              />
-            </el-form-item>
-
             <el-form-item label="Цель" v-if="hotspot.type === 'scene'">
-              <el-select v-model="hotspot.targetScene" @change="$emit('update-hotspot', index)">
+              <el-select v-model="hotspot.targetScene" @change="onFieldChange(index)">
                 <el-option
                   v-for="scene in filteredScenes"
                   :key="scene.id"
@@ -112,7 +96,7 @@
                 type="textarea"
                 v-model="hotspot.text"
                 :rows="2"
-                @input="$emit('update-hotspot', index)"
+                @input="onFieldChange(index)"
               />
             </el-form-item>
           </el-form>
@@ -153,9 +137,34 @@ export default {
     }
   },
   emits: ['add-hotspot', 'remove-hotspot', 'update-hotspot', 'clear-hotspots', 'select-hotspot'],
+  data() {
+    return {
+      debounceTimers: {}
+    }
+  },
   computed: {
     filteredScenes() {
       return this.availableScenes.filter(scene => scene.id !== this.currentSceneId)
+    }
+  },
+  beforeUnmount() {
+    // Clean up all debounce timers
+    Object.values(this.debounceTimers).forEach(timer => clearTimeout(timer))
+  },
+  methods: {
+    onNameInput(index) {
+      // Clear existing timer for this hotspot
+      if (this.debounceTimers[index]) {
+        clearTimeout(this.debounceTimers[index])
+      }
+      // Set new timer with 1 second debounce
+      this.debounceTimers[index] = setTimeout(() => {
+        this.$emit('update-hotspot', index)
+        delete this.debounceTimers[index]
+      }, 1000)
+    },
+    onFieldChange(index) {
+      this.$emit('update-hotspot', index)
     }
   }
 }
@@ -222,13 +231,6 @@ export default {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.hotspots-editor__item-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid hsl(0 0% 80%);
 }
 
 .hotspots-editor__item-content {
