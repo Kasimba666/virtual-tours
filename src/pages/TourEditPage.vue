@@ -36,8 +36,8 @@
             size="small"
             class="tour-edit-page__table"
         >
-          <el-table-column prop="id" label="ID" width="120" />
           <el-table-column prop="name" label="Название" />
+          <el-table-column prop="hotspotsCount" label="Хотспоты" width="100" align="center" />
 
           <el-table-column label="Действия" width="210">
             <template #default="scope">
@@ -100,9 +100,11 @@ export default {
   computed: {
     sceneList() {
       return Object.keys(this.form.data.scenes).map((id) => {
+        const scene = this.form.data.scenes[id]
         return {
           id,
-          name: this.form.data.scenes[id].name || '(без названия)'
+          name: scene.name || '(без названия)',
+          hotspotsCount: scene.hotspots?.length || 0
         }
       })
     }
