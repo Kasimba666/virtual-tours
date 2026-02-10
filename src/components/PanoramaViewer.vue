@@ -98,34 +98,72 @@ export default {
         if (!this.readyEmitted) { this.readyEmitted = true; setTimeout(() => { this.$emit('ready'); }, 200); }
       }, undefined, (error) => { console.error('Error loading panorama:', error); this.loading = false; });
     },
-    createAimIconTexture(isSelected) {
+    createAimIconTexture(isSelected, hotspotColor = '#0066ff') {
+      const size = 30;
       const canvas = document.createElement('canvas');
-      canvas.width = 64; canvas.height = 64;
+      canvas.width = size;
+      canvas.height = size;
       const ctx = canvas.getContext('2d');
-      const color = isSelected ? '#ff0000' : '#0066ff';
+      
+      const color = isSelected ? '#ff0000' : hotspotColor;
+      
+      // Draw Element Plus Aim icon as SVG path on canvas
+      // The Aim icon consists of crosshairs with a circle
       ctx.strokeStyle = color;
-      ctx.lineWidth = 6;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2;
       ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Outer circle
       ctx.beginPath();
-      ctx.moveTo(32, 8); ctx.lineTo(32, 56);
+      ctx.arc(size / 2, size / 2, size * 0.35, 0, Math.PI * 2);
       ctx.stroke();
+      
+      // Center dot
       ctx.beginPath();
-      ctx.moveTo(8, 32); ctx.lineTo(56, 32);
+      ctx.arc(size / 2, size / 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Vertical line (top)
+      ctx.beginPath();
+      ctx.moveTo(size / 2, 0);
+      ctx.lineTo(size / 2, size / 2 - size * 0.35);
       ctx.stroke();
+      
+      // Vertical line (bottom)
+      ctx.beginPath();
+      ctx.moveTo(size / 2, size / 2 + size * 0.35);
+      ctx.lineTo(size / 2, size);
+      ctx.stroke();
+      
+      // Horizontal line (left)
+      ctx.beginPath();
+      ctx.moveTo(0, size / 2);
+      ctx.lineTo(size / 2 - size * 0.35, size / 2);
+      ctx.stroke();
+      
+      // Horizontal line (right)
+      ctx.beginPath();
+      ctx.moveTo(size / 2 + size * 0.35, size / 2);
+      ctx.lineTo(size, size / 2);
+      ctx.stroke();
+      
       const texture = new THREE.CanvasTexture(canvas);
       texture.needsUpdate = true;
       return texture;
     },
     createHotspotSprite(hotspot) {
       const isSelected = hotspot.id === this.selectedHotspotId;
-      const texture = this.createAimIconTexture(isSelected);
+      const color = hotspot.color || '#0066ff';
+      const texture = this.createAimIconTexture(isSelected, color);
       const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false, transparent: true, opacity: 1 });
       const sprite = new THREE.Sprite(material);
       sprite.scale.set(this.hotspotSize, this.hotspotSize, 1);
       sprite.renderOrder = 9999;
       const pos = this.yawPitchToVector3(hotspot.position.yaw, hotspot.position.pitch);
       sprite.position.copy(pos);
-      sprite.userData = { hotspotId: hotspot.id };
+      sprite.userData = { hotspotId: hotspot.id, hotspotColor: color };
       return sprite;
     },
     yawPitchToVector3(yaw, pitch) {
@@ -180,6 +218,7 @@ export default {
       for (const hotspot of this.hotspots) {
         let sprite = this.hotspotSpritesMap.get(hotspot.id);
         const isSelected = hotspot.id === this.selectedHotspotId;
+        const hotspotColor = hotspot.color || '#0066ff';
         if (!sprite) {
           sprite = this.createHotspotSprite(hotspot);
           this.scene.add(sprite);
@@ -192,7 +231,7 @@ export default {
             needsRender = true;
           }
           sprite.material.map.dispose();
-          sprite.material.map = this.createAimIconTexture(isSelected);
+          sprite.material.map = this.createAimIconTexture(isSelected, hotspotColor);
         }
         sprite.scale.set(this.hotspotSize, this.hotspotSize, 1);
       }
@@ -203,8 +242,9 @@ export default {
     updateHotspotSelection() {
       for (const [id, sprite] of this.hotspotSpritesMap) {
         const isSelected = id === this.selectedHotspotId;
+        const hotspotColor = sprite.userData.hotspotColor || '#0066ff';
         sprite.material.map.dispose();
-        sprite.material.map = this.createAimIconTexture(isSelected);
+        sprite.material.map = this.createAimIconTexture(isSelected, hotspotColor);
       }
       if (this.composer && this.scene && this.camera && this.renderer) {
         this.composer.render();
