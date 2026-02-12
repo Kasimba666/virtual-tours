@@ -139,6 +139,7 @@
               ref="viewer"
               :src="form.panorama"
               :hotspots="[]"
+              :show-crosshair="true"
               @ready="onViewerReady"
               @camera-move="onCameraMove"
               class="scene-editor-page__viewer"

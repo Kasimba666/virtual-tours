@@ -5,15 +5,16 @@
       <el-icon class="is-loading"><Loading /></el-icon>
       <span>Загрузка панорамы...</span>
     </div>
-    <!-- Перекрестие -->
-    <div class="panorama-viewer__crosshair">
-      <div class="panorama-viewer__crosshair-h"></div>
-      <div class="panorama-viewer__crosshair-v"></div>
-    </div>
-    <!-- Значения yaw -->
-    <div class="panorama-viewer__yaw-display">
-      Screen: {{ screenYaw.toFixed(3) }} | Center: {{ centerYaw.toFixed(3) }}
-    </div>
+    <!-- Перекрестие и значения yaw -->
+    <template v-if="showCrosshair">
+      <div class="panorama-viewer__crosshair">
+        <div class="panorama-viewer__crosshair-h"></div>
+        <div class="panorama-viewer__crosshair-v"></div>
+      </div>
+      <div class="panorama-viewer__yaw-display">
+        Screen: {{ screenYaw.toFixed(3) }} | Center: {{ centerYaw.toFixed(3) }}
+      </div>
+    </template>
   </div>
 </template>
 
@@ -33,7 +34,8 @@ export default {
   props: {
     src: { type: String, required: true },
     hotspots: { type: Array, default: () => [] },
-    selectedHotspotId: { type: String, default: null }
+    selectedHotspotId: { type: String, default: null },
+    showCrosshair: { type: Boolean, default: false }
   },
   emits: ['ready', 'camera-move', 'hotspot-click', 'hotspot-dblclick', 'hotspot-drag'],
   data() {
