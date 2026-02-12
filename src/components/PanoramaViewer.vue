@@ -360,7 +360,6 @@ export default {
         this.isDragging = false;
         this.draggingHotspot = null;
         container.style.cursor = this.hoveredHotspot ? 'pointer' : 'grab';
-        this.logCameraPosition();
       });
       // Прекращаем перемещение при выходе мыши за пределы панорамы
       container.addEventListener('mouseleave', () => {
@@ -368,7 +367,6 @@ export default {
           this.isDragging = false;
           this.draggingHotspot = null;
           container.style.cursor = 'grab';
-          this.logCameraPosition();
         }
       });
       container.addEventListener('wheel', (event) => {
@@ -406,29 +404,6 @@ export default {
       }
       if (this.camera) {
         if (!this.applyingView) { this.$emit('camera-move', this.getCameraView()); }
-      }
-    },
-
-    // Вывод в консоль после завершения перемещения камеры (только yaw)
-    logCameraPosition() {
-      if (!this.camera || !this.$refs.container) return;
-      // Нормализуем camera yaw к диапазону -PI...PI
-      let camYaw = this.camera.rotation.y;
-      while (camYaw > Math.PI) camYaw -= 2 * Math.PI;
-      while (camYaw < -Math.PI) camYaw += 2 * Math.PI;
-
-      const container = this.$refs.container;
-      const rect = container.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const centerPoint = this.screenToRaycast(centerX, centerY);
-      if (centerPoint) {
-        const centerYawPitch = this.vector3ToYawPitch(centerPoint);
-        // Нормализуем diff к диапазону -PI...PI
-        let diff = camYaw - centerYawPitch.yaw;
-        while (diff > Math.PI) diff -= 2 * Math.PI;
-        while (diff < -Math.PI) diff += 2 * Math.PI;
-        console.log('[move-end] Camera:', camYaw.toFixed(3), '| Center:', centerYawPitch.yaw.toFixed(3), '| diff:', diff.toFixed(3));
       }
     },
     onResize() {
