@@ -5,6 +5,15 @@
       <el-icon class="is-loading"><Loading /></el-icon>
       <span>Загрузка панорамы...</span>
     </div>
+    <!-- Перекрестие -->
+    <div class="panorama-viewer__crosshair">
+      <div class="panorama-viewer__crosshair-h"></div>
+      <div class="panorama-viewer__crosshair-v"></div>
+    </div>
+    <!-- Значения yaw -->
+    <div class="panorama-viewer__yaw-display">
+      Screen: {{ screenYaw.toFixed(3) }} | Center: {{ centerYaw.toFixed(3) }}
+    </div>
   </div>
 </template>
 
@@ -47,7 +56,9 @@ export default {
       hotspotSpritesMap: new Map(),
       aimTexture: null,
       aimSelectedTexture: null,
-      rankTexture: null
+      rankTexture: null,
+      screenYaw: 0,
+      centerYaw: 0
     };
   },
   watch: {
@@ -403,7 +414,28 @@ export default {
         this.renderer.render(this.scene, this.camera);
       }
       if (this.camera) {
+        this.updateCrosshairValues();
         if (!this.applyingView) { this.$emit('camera-move', this.getCameraView()); }
+      }
+    },
+
+    updateCrosshairValues() {
+      if (!this.camera || !this.$refs.container) return;
+      // Screen yaw - из rotation камеры (нормализованный)
+      let camYaw = this.camera.rotation.y;
+      while (camYaw > Math.PI) camYaw -= 2 * Math.PI;
+      while (camYaw < -Math.PI) camYaw += 2 * Math.PI;
+      this.screenYaw = camYaw;
+
+      // Center yaw - из raycast центра экрана
+      const container = this.$refs.container;
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const centerPoint = this.screenToRaycast(centerX, centerY);
+      if (centerPoint) {
+        const centerYawPitch = this.vector3ToYawPitch(centerPoint);
+        this.centerYaw = centerYawPitch.yaw;
       }
     },
     onResize() {
@@ -475,5 +507,41 @@ export default {
   background: hsla(0, 0%, 100%, 0.6);
   backdrop-filter: blur(3px);
   font-size: 14px; color: hsl(0 0% 20%);
+}
+.panorama-viewer__crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.panorama-viewer__crosshair-h {
+  position: absolute;
+  top: 0;
+  left: -20px;
+  right: -20px;
+  height: 1px;
+  background-color: hsla(0, 0%, 50%, 0.5);
+}
+.panorama-viewer__crosshair-v {
+  position: absolute;
+  left: 0;
+  top: -20px;
+  bottom: -20px;
+  width: 1px;
+  background-color: hsla(0, 0%, 50%, 0.5);
+}
+.panorama-viewer__yaw-display {
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: hsla(0, 0%, 0%, 0.6);
+  color: hsl(0, 0%, 100%);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  white-space: nowrap;
 }
 </style>
