@@ -41,7 +41,7 @@
             <el-collapse v-model="activeCollapse">
               <el-collapse-item title="Параметры камеры" name="camera">
                 <div class="scene-editor-page__camera-controls">
-                  <el-form-item label="Yaw">
+                  <el-form-item label="Yaw" class="yaw-input-item">
                     <el-input-number
                       v-model="form.startView.yaw"
                       :min="-Math.PI"
@@ -51,6 +51,15 @@
                       :disabled="!form.panorama"
                       @input="onCameraParamChange"
                     />
+                    <el-button
+                      class="clear-yaw-btn"
+                      size="small"
+                      circle
+                      :disabled="!form.panorama"
+                      @click="resetYawToZero"
+                    >
+                      ×
+                    </el-button>
                   </el-form-item>
 
                   <el-form-item label="Pitch">
@@ -76,6 +85,10 @@
                     />
                   </el-form-item>
                 </div>
+
+                <el-button size="small" @click="resetViewToZero" style="margin-top: 10px">
+                  Сбросить вид к нулю
+                </el-button>
               </el-collapse-item>
 
               <el-collapse-item title="Параметры эффектов" name="effects">
@@ -399,6 +412,22 @@ export default {
       }
     },
 
+    resetViewToZero() {
+      this.form.startView = { yaw: 0, pitch: 0, fov: 60 };
+      const viewer = this.$refs.viewer;
+      if (viewer && this.form.panorama) {
+        viewer.setCameraView(this.form.startView);
+      }
+    },
+
+    resetYawToZero() {
+      this.form.startView.yaw = 0;
+      const viewer = this.$refs.viewer;
+      if (viewer && this.form.panorama) {
+        viewer.setCameraView(this.form.startView);
+      }
+    },
+
     onEffectChange() {
       const viewer = this.$refs.viewer
       const hotspotsViewer = this.$refs.hotspotsViewer
@@ -508,15 +537,30 @@ export default {
   display: flex;
   gap: 1rem;
   align-items: flex-end;
-  
+
   .el-form-item {
     margin-bottom: 0;
-    
+
     .el-form-item__label {
       font-size: 12px;
       color: hsl(0 0% 40%);
     }
   }
+}
+
+.yaw-input-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.clear-yaw-btn {
+  margin-left: 8px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .hotspots-viewer {

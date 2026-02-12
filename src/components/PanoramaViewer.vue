@@ -212,16 +212,18 @@ export default {
     },
     yawPitchToVector3(yaw, pitch) {
       const r = 499;
-      const yawDeg = -yaw * (180 / Math.PI);
+      const yawDeg = yaw * (180 / Math.PI);  // Без инверсии - Система A
       const pitchDeg = pitch * (180 / Math.PI);
       const phi = (90 - pitchDeg) * (Math.PI / 180);
-      const theta = (yawDeg + 180) * (Math.PI / 180);
+      const theta = yawDeg * (Math.PI / 180);  // Без +180 - Система A согласована
       return new THREE.Vector3(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
     },
     vector3ToYawPitch(vector) {
       const normalized = vector.clone().normalize();
       const pitch = Math.asin(normalized.y);
-      const yaw = Math.atan2(normalized.z, -normalized.x);
+      // Инвертировать Z из-за sphere.scale(-1, 1, 1)
+      // Инвертировать yaw для согласованности с camera.rotation.y
+      const yaw = -Math.atan2(normalized.x, -normalized.z);
       return { yaw, pitch };
     },
     screenToRaycast(clientX, clientY) {
@@ -304,6 +306,9 @@ export default {
       const container = this.$refs.container;
       if (!container) return;
       container.addEventListener('mousedown', (event) => {
+        // Только левая кнопка мыши (button === 0)
+        if (event.button !== 0) return;
+
         const hotspotId = this.getHotspotAtPosition(event.clientX, event.clientY);
         if (hotspotId) {
           const sprite = this.hotspotSpritesMap.get(hotspotId);
@@ -321,6 +326,7 @@ export default {
         }
       });
       container.addEventListener('mousemove', (event) => {
+        // Проверяем что камера перемещается только при зажатой левой кнопке
         if (this.draggingHotspot && this.selectedHotspotId) {
           const point = this.screenToRaycast(event.clientX, event.clientY);
           if (point) {
@@ -354,17 +360,16 @@ export default {
         this.isDragging = false;
         this.draggingHotspot = null;
         container.style.cursor = this.hoveredHotspot ? 'pointer' : 'grab';
+        this.logCameraPosition();
       });
+      // Прекращаем перемещение при выходе мыши за пределы панорамы
       container.addEventListener('mouseleave', () => {
-        if (this.draggingHotspot && this.selectedHotspotId) {
-          const sprite = this.hotspotSpritesMap.get(this.draggingHotspot);
-          if (sprite && this.aimSelectedTexture) {
-            sprite.material.map = this.aimSelectedTexture;
-          }
+        if (this.isDragging || this.draggingHotspot) {
+          this.isDragging = false;
+          this.draggingHotspot = null;
+          container.style.cursor = 'grab';
+          this.logCameraPosition();
         }
-        this.isDragging = false;
-        this.draggingHotspot = null;
-        container.style.cursor = 'grab';
       });
       container.addEventListener('wheel', (event) => {
         event.preventDefault();
@@ -399,7 +404,32 @@ export default {
       } else if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera);
       }
-      if (this.camera && !this.applyingView) { this.$emit('camera-move', this.getCameraView()); }
+      if (this.camera) {
+        if (!this.applyingView) { this.$emit('camera-move', this.getCameraView()); }
+      }
+    },
+
+    // Вывод в консоль после завершения перемещения камеры (только yaw)
+    logCameraPosition() {
+      if (!this.camera || !this.$refs.container) return;
+      // Нормализуем camera yaw к диапазону -PI...PI
+      let camYaw = this.camera.rotation.y;
+      while (camYaw > Math.PI) camYaw -= 2 * Math.PI;
+      while (camYaw < -Math.PI) camYaw += 2 * Math.PI;
+
+      const container = this.$refs.container;
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const centerPoint = this.screenToRaycast(centerX, centerY);
+      if (centerPoint) {
+        const centerYawPitch = this.vector3ToYawPitch(centerPoint);
+        // Нормализуем diff к диапазону -PI...PI
+        let diff = camYaw - centerYawPitch.yaw;
+        while (diff > Math.PI) diff -= 2 * Math.PI;
+        while (diff < -Math.PI) diff += 2 * Math.PI;
+        console.log('[move-end] Camera:', camYaw.toFixed(3), '| Center:', centerYawPitch.yaw.toFixed(3), '| diff:', diff.toFixed(3));
+      }
     },
     onResize() {
       const container = this.$refs.container;
@@ -411,7 +441,13 @@ export default {
         this.composer.setSize(container.clientWidth, container.clientHeight);
       }
     },
-    getCameraView() { return { yaw: this.camera.rotation.y, pitch: this.camera.rotation.x, fov: this.camera.fov }; },
+    getCameraView() {
+      // Нормализуем yaw к диапазону -PI...PI
+      let yaw = this.camera.rotation.y;
+      while (yaw > Math.PI) yaw -= 2 * Math.PI;
+      while (yaw < -Math.PI) yaw += 2 * Math.PI;
+      return { yaw, pitch: this.camera.rotation.x, fov: this.camera.fov };
+    },
     setCameraView({ yaw, pitch, fov }) {
       if (!this.camera || !this.renderer || !this.scene) return;
       this.applyingView = true;
