@@ -35,9 +35,10 @@ export default {
     src: { type: String, required: true },
     hotspots: { type: Array, default: () => [] },
     selectedHotspotId: { type: String, default: null },
-    showCrosshair: { type: Boolean, default: false }
+    showCrosshair: { type: Boolean, default: false },
+    northYaw: { type: Number, default: 0 }
   },
-  emits: ['ready', 'camera-move', 'hotspot-click', 'hotspot-dblclick', 'hotspot-drag'],
+  emits: ['ready', 'camera-move', 'hotspot-click', 'hotspot-dblclick', 'hotspot-drag', 'set-north'],
   data() {
     return {
       loading: false,
@@ -60,13 +61,16 @@ export default {
       aimSelectedTexture: null,
       rankTexture: null,
       screenYaw: 0,
-      centerYaw: 0
+      centerYaw: 0,
+      northYawValue: 0,
+      northLine: null
     };
   },
   watch: {
     src() { this.readyEmitted = false; this.loadTexture(); },
     hotspots: { handler() { this.updateHotspots(); }, deep: true },
-    selectedHotspotId() { this.updateHotspotSelection(); }
+    selectedHotspotId() { this.updateHotspotSelection(); },
+    northYaw() { this.updateNorthLine(); }
   },
   mounted() {
     this.renderer = null;
@@ -74,6 +78,8 @@ export default {
     this.camera = null;
     this.sphere = null;
     this.composer = null;
+    this.brightnessContrastPass = null;
+    this.colorCorrectionPass = null;
     this.animate = this.animate.bind(this);
     this.$nextTick(() => {
       this.preloadTextures();
@@ -177,28 +183,30 @@ export default {
       this.renderer.setSize(container.clientWidth, container.clientHeight);
       this.renderer.domElement.style.cursor = 'grab';
       container.appendChild(this.renderer.domElement);
-      this.scene = new THREE.Scene();
-      this.camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+      this.scene = markRaw(new THREE.Scene());
+      this.camera = markRaw(new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000));
       this.camera.position.set(0, 0, 0.01);
       const geometry = new THREE.SphereGeometry(500, 60, 40);
       geometry.scale(-1, 1, 1);
       const material = new THREE.MeshBasicMaterial({ map: null, color: 0xffffff });
-      this.sphere = new THREE.Mesh(geometry, material);
+      this.sphere = markRaw(new THREE.Mesh(geometry, material));
       this.scene.add(this.sphere);
-      this.composer = new EffectComposer(this.renderer);
+      this.composer = markRaw(new EffectComposer(this.renderer));
       const renderPass = new RenderPass(this.scene, this.camera);
       this.composer.addPass(renderPass);
-      this.brightnessContrastPass = new ShaderPass(BrightnessContrastShader);
+      this.brightnessContrastPass = markRaw(new ShaderPass(BrightnessContrastShader));
       this.brightnessContrastPass.uniforms.brightness.value = this.brightness;
       this.brightnessContrastPass.uniforms.contrast.value = this.contrast;
       this.composer.addPass(this.brightnessContrastPass);
-      this.colorCorrectionPass = new ShaderPass(ColorCorrectionShader);
+      this.colorCorrectionPass = markRaw(new ShaderPass(ColorCorrectionShader));
       this.colorCorrectionPass.uniforms.powRGB.value = new THREE.Vector3(this.saturation, this.saturation, this.saturation);
       this.composer.addPass(this.colorCorrectionPass);
       this.initialized = true;
       if (this.hotspots && this.hotspots.length > 0) {
         this.updateHotspots();
       }
+      // Обновляем линию севера при инициализации
+      this.updateNorthLine();
       this.animate();
     },
     loadTexture() {
@@ -225,10 +233,11 @@ export default {
     },
     yawPitchToVector3(yaw, pitch) {
       const r = 499;
-      const yawDeg = yaw * (180 / Math.PI);  // Без инверсии - Система A
+      // Инвертируем yaw для правильного отображения
+      const yawDeg = -yaw * (180 / Math.PI);
       const pitchDeg = pitch * (180 / Math.PI);
       const phi = (90 - pitchDeg) * (Math.PI / 180);
-      const theta = yawDeg * (Math.PI / 180);  // Без +180 - Система A согласована
+      const theta = (yawDeg - 90) * (Math.PI / 180);
       return new THREE.Vector3(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
     },
     vector3ToYawPitch(vector) {
@@ -495,7 +504,48 @@ export default {
       if (this.composer && this.scene && this.camera && this.renderer) {
         this.composer.render();
       }
-    }
+    },
+    updateNorthLine() {
+      this.northYawValue = this.northYaw;
+      if (!this.scene) return;
+      
+      // Удаляем старую линию
+      if (this.northLine) {
+        this.scene.remove(this.northLine);
+        this.northLine.geometry.dispose();
+        this.northLine.material.dispose();
+        this.northLine = null;
+      }
+      
+      // Проверяем на null/undefined (0 - допустимое значение для севера)
+      if (this.northYawValue === null || this.northYawValue === undefined) return;
+      
+      // Создаём новую вертикальную линию от northYaw
+      const northPos = this.yawPitchToVector3(this.northYawValue, 0);
+      const topPos = this.yawPitchToVector3(this.northYawValue, Math.PI / 2 - 0.1);
+      const bottomPos = this.yawPitchToVector3(this.northYawValue, -Math.PI / 2 + 0.1);
+      
+      const points = [topPos, northPos, bottomPos];
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({ color: 0x00ff00, depthTest: false });
+      this.northLine = markRaw(new THREE.Line(geometry, material));
+      this.northLine.renderOrder = 9998;
+      this.scene.add(this.northLine);
+      
+      // Принудительный рендер
+      if (this.composer) {
+        this.composer.render();
+      }
+    },
+    setNorth() {
+      // Установить север по текущему положению камеры (centerYaw)
+      const northValue = this.centerYaw;
+      const camYaw = this.camera ? this.camera.rotation.y : 0;
+      console.log('=== SET NORTH ===');
+      console.log('Camera rotation.y:', camYaw);
+      console.log('Center yaw (northValue):', northValue);
+      this.$emit('set-north', northValue);
+    },
   }
 }
 </script>
@@ -535,7 +585,7 @@ export default {
 }
 .panorama-viewer__yaw-display {
   position: absolute;
-  bottom: -24px;
+  bottom: -10px;
   left: 50%;
   transform: translateX(-50%);
   background-color: hsla(0, 0%, 0%, 0.6);

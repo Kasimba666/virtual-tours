@@ -9,6 +9,7 @@
             ref="viewer"
             :src="currentPanorama"
             :hotspots="currentHotspots"
+            :north-yaw="currentNorthYaw"
             @ready="applyStartView"
             @hotspot-click="onHotspotClick"
             class="tour-view-page__viewer-canvas"
@@ -79,6 +80,12 @@ export default {
       
       // Фильтруем хотспоты типа "scene" и возвращаем их
       return scene.hotspots.filter(h => h.type === 'scene')
+    },
+
+    currentNorthYaw() {
+      if (!this.tour || !this.currentSceneId) return 0
+      const scene = this.tour.data.scenes[this.currentSceneId]
+      return scene?.northYaw || 0
     }
   },
 
@@ -131,14 +138,10 @@ export default {
       const viewer = this.$refs.viewer
       if (!viewer) return
 
-      console.log('TourViewPage: Применяем параметры камеры для сцены', this.currentSceneId)
-      console.log('TourViewPage: Параметры камеры:', view)
-
       // Применяем параметры камеры с небольшой задержкой для надежности
       setTimeout(() => {
         viewer.setCameraView(view)
         this.viewApplied = true
-        console.log('TourViewPage: Параметры камеры применены')
       }, 100)
     },
 
@@ -157,7 +160,6 @@ export default {
         if (hotspot && hotspot.type === 'scene' && hotspot.targetScene) {
           // Проверяем, что целевая сцена существует
           if (this.tour.data.scenes[hotspot.targetScene]) {
-            console.log('TourViewPage: Переходим к сцене', hotspot.targetScene)
             this.currentSceneId = hotspot.targetScene
             this.viewApplied = false
             return

@@ -89,6 +89,9 @@
                 <el-button size="small" @click="resetViewToZero" style="margin-top: 10px">
                   Сбросить вид к нулю
                 </el-button>
+                <el-button size="small" @click="setNorth" style="margin-top: 10px; margin-left: 10px" type="success">
+                  Установить север по центру
+                </el-button>
               </el-collapse-item>
 
               <el-collapse-item title="Параметры эффектов" name="effects">
@@ -140,8 +143,10 @@
               :src="form.panorama"
               :hotspots="[]"
               :show-crosshair="true"
+              :north-yaw="form.northYaw"
               @ready="onViewerReady"
               @camera-move="onCameraMove"
+              @set-north="onSetNorth"
               class="scene-editor-page__viewer"
             />
           </el-tab-pane>
@@ -226,7 +231,8 @@ export default {
         panorama: '',
         hotspots: [],
         startView: { yaw: 0, pitch: 0, fov: 60 },
-        effects: { brightness: 0.1, contrast: 0.3, saturation: 0.9 }
+        effects: { brightness: 0.1, contrast: 0.3, saturation: 0.9 },
+        northYaw: 0
       }
     }
   },
@@ -258,7 +264,8 @@ export default {
               panorama: scene.panorama,
               hotspots: scene.hotspots || [],
               startView: scene.startView || { yaw: 0, pitch: 0, fov: 60 },
-              effects: scene.effects || { brightness: 0.1, contrast: 0.3, saturation: 0.9 }
+              effects: scene.effects || { brightness: 0.1, contrast: 0.3, saturation: 0.9 },
+              northYaw: scene.northYaw || 0
             }
           }
         })
@@ -371,7 +378,8 @@ export default {
         panorama: this.form.panorama,
         hotspots: this.form.hotspots,
         startView: this.form.startView,
-        effects: this.form.effects
+        effects: this.form.effects,
+        northYaw: this.form.northYaw
       }
       toursService.saveTour(this.tour)
         .then(() => {
@@ -426,6 +434,18 @@ export default {
       const viewer = this.$refs.viewer;
       if (viewer && this.form.panorama) {
         viewer.setCameraView(this.form.startView);
+      }
+    },
+
+    onSetNorth(northYaw) {
+      this.form.northYaw = northYaw;
+      this.$message.success('Север установлен');
+    },
+
+    setNorth() {
+      const viewer = this.$refs.viewer;
+      if (viewer) {
+        viewer.setNorth();
       }
     },
 
